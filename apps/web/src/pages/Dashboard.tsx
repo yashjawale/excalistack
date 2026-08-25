@@ -9,6 +9,7 @@ import {
   renameDrawing,
 } from "../api";
 import type { DrawingSummary } from "@excalistack/shared";
+import { CardMenu } from "../components/CardMenu";
 import { useTheme } from "../theme";
 
 /**
@@ -236,6 +237,11 @@ export function Dashboard(): ReactElement {
             <ul className="grid">
               {drawings.map((drawing) => (
                 <li key={drawing.id} className="card">
+                  <CardMenu
+                    downloadUrl={`/api/drawings/${encodeURIComponent(drawing.id)}/export`}
+                    onRename={() => void handleRename(drawing)}
+                    onDelete={() => void handleDelete(drawing)}
+                  />
                   <a
                     className="card-thumb-link"
                     href={`/d/${drawing.id}`}
@@ -258,26 +264,6 @@ export function Dashboard(): ReactElement {
                       {drawing.elementCount} element{drawing.elementCount === 1 ? "" : "s"} ·{" "}
                       {formatTimestamp(drawing.updatedAt)}
                     </span>
-                    <div className="card-actions">
-                      <button
-                        className="btn btn-small"
-                        onClick={() => void handleRename(drawing)}
-                      >
-                        Rename
-                      </button>
-                      <a
-                        className="btn btn-small"
-                        href={`/api/drawings/${encodeURIComponent(drawing.id)}/export`}
-                      >
-                        Download
-                      </a>
-                      <button
-                        className="btn btn-small btn-danger"
-                        onClick={() => void handleDelete(drawing)}
-                      >
-                        Delete
-                      </button>
-                    </div>
                   </div>
                 </li>
               ))}
