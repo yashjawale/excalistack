@@ -2,6 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
+// Registered app-wide so Excalidraw's fonts (Assistant, Excalifont) are
+// available to our own chrome as well as the canvas component.
+import "@excalidraw/excalidraw/index.css";
 import "./styles.css";
 
 /**

@@ -8,7 +8,6 @@ import {
   restore,
   serializeAsJSON,
 } from "@excalidraw/excalidraw";
-import "@excalidraw/excalidraw/index.css";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type {
   BinaryFileData,
@@ -18,6 +17,7 @@ import type {
 import { ExcalidrawDocumentSchema, pickExportAppState } from "@excalistack/shared";
 import type { StoredDrawing } from "@excalistack/shared";
 import { getDrawing, updateDrawing } from "../api";
+import { useTheme } from "../theme";
 
 /** Debounce window (ms) applied before an autosave round-trip starts. */
 const AUTOSAVE_DEBOUNCE_MS = 800;
@@ -109,6 +109,7 @@ async function generateThumbnail(
  */
 export function EditorPage(): ReactElement {
   const { id = "" } = useParams();
+  const [theme] = useTheme();
   const [drawing, setDrawing] = useState<StoredDrawing | null>(null);
   const [status, setStatus] = useState<EditorStatus>({ kind: "loading" });
   const [flash, setFlash] = useState<string | null>(null);
@@ -326,6 +327,7 @@ export function EditorPage(): ReactElement {
       {drawing && (
         <div className="editor-container" ref={containerRef}>
           <Excalidraw
+            theme={theme}
             excalidrawAPI={(api) => {
               apiRef.current = api;
             }}
