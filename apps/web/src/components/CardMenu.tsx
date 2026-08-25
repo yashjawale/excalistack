@@ -59,6 +59,17 @@ export function CardMenu(props: CardMenuProps): ReactElement {
     if (!open) return;
 
     /**
+     * Closes the menu on scroll anywhere in the document — the popover
+     * is positioned with fixed viewport coordinates that would otherwise
+     * go stale and detach from its trigger.
+     *
+     * @param event - Scroll event (any scrollable ancestor).
+     */
+    const handleScroll = (): void => {
+      setOpen(false);
+    };
+
+    /**
      * Closes the menu when clicking anywhere outside of it.
      *
      * @param event - Document pointer event.
@@ -78,9 +89,11 @@ export function CardMenu(props: CardMenuProps): ReactElement {
       if (event.key === "Escape") setOpen(false);
     };
 
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
+      window.removeEventListener("scroll", handleScroll, { capture: true });
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };

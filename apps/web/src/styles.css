@@ -341,14 +341,17 @@ code {
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow);
+  /* NOTE: no transform here — a transformed ancestor becomes the
+     containing block for position:fixed popovers and clips them via
+     overflow:hidden. Hover feedback uses border/shadow only. */
   transition:
     border-color 120ms ease,
-    transform 120ms ease;
+    box-shadow 120ms ease;
 }
 
 .card:hover {
   border-color: var(--accent);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
 }
 
 .card-thumb-link {
@@ -393,6 +396,13 @@ code {
   cursor: pointer;
   opacity: 0;
   transition: opacity 100ms ease;
+}
+
+/* While the popover is open the full-screen backdrop would otherwise
+   swallow clicks aimed at the trigger; lift the trigger above it so the
+   button keeps receiving events and can toggle cleanly. */
+.card-menu-trigger[aria-expanded="true"] {
+  z-index: 22;
 }
 
 .card:hover .card-menu-trigger,
