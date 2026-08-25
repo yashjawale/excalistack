@@ -293,7 +293,11 @@ export function EditorPage(): ReactElement {
           <span className="editor-title">…</span>
         )}
         <div className="editor-status">
-          {status.kind === "saving" && <span className="status">Saving…</span>}
+          {status.kind === "saving" && (
+            <span className="status status-saving" title="Saving…">
+              <span className="save-dot" />
+            </span>
+          )}
           {status.kind === "saved" && (
             <span className="status status-ok" title="All changes saved">
               <CheckIcon />
