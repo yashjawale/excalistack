@@ -293,7 +293,9 @@ export function EditorPage(): ReactElement {
             inputClassName="editor-title-input"
           />
         ) : (
-          <span className="editor-title">…</span>
+          <span className="editor-title">
+            {status.kind === "loading" ? "Loading…" : "…"}
+          </span>
         )}
         <div className="editor-status">
           {status.kind === "saving" && (
@@ -308,16 +310,11 @@ export function EditorPage(): ReactElement {
           )}
           {status.kind === "error" && (
             <span className="status status-error" title={status.message}>
-              Save failed
+              {drawing ? "Save failed" : "Load failed"}
             </span>
           )}
         </div>
       </header>
-
-      {status.kind === "loading" && <p className="muted editor-loading">Loading…</p>}
-      {status.kind === "error" && !drawing && (
-        <p className="muted editor-loading">{status.message}</p>
-      )}
 
       {drawing && (
         <div className="editor-container" ref={containerRef}>

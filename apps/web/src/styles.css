@@ -599,10 +599,6 @@ code {
   }
 }
 
-.editor-loading {
-  padding: 32px;
-}
-
 .editor-container {
   position: relative;
   flex: 1;
