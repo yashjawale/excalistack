@@ -339,6 +339,18 @@ code {
   text-overflow: ellipsis;
 }
 
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.content-heading {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 18px;
+}
+
 .card-name-input {
   font: inherit;
   font-weight: 600;
