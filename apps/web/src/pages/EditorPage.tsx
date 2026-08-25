@@ -4,9 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import {
   Excalidraw,
   exportToBlob,
-  exportToSvg,
   restore,
-  serializeAsJSON,
 } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type {
@@ -58,22 +56,6 @@ function blobToDataURL(blob: Blob): Promise<string> {
 }
 
 /**
- * Triggers a browser download for the given payload.
- *
- * @param body - File content.
- * @param filename - Suggested download file name.
- */
-function download(body: Blob | string, filename: string): void {
-  const blob = typeof body === "string" ? new Blob([body]) : body;
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-/**
  * Renders a small PNG preview of the scene for dashboard listings.
  *
  * @param elements - Live scene elements.
@@ -102,10 +84,32 @@ async function generateThumbnail(
 }
 
 /**
+ * Green check icon indicating that every change has been saved.
+ */
+function CheckIcon(): ReactElement {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" opacity="0.3" />
+      <path d="m8.3 12.3 2.5 2.5 5-5.6" />
+    </svg>
+  );
+}
+
+/**
  * Full-screen Excalidraw editor bound to a single stored drawing.
  * Changes are debounced-autosaved to the server together with a freshly
- * rendered thumbnail; `.excalidraw`/PNG/SVG export and drag-and-drop
- * import are available from the toolbar.
+ * rendered thumbnail; `.excalidraw` files can be imported by dragging
+ * them onto the canvas.
  */
 export function EditorPage(): ReactElement {
   const { id = "" } = useParams();
@@ -244,54 +248,6 @@ export function EditorPage(): ReactElement {
     };
   }, [drawing]);
 
-  /**
-   * Exports the current scene as a native `.excalidraw` file.
-   */
-  const handleExportExcalidraw = (): void => {
-    const api = apiRef.current;
-    if (!api || !drawing) return;
-    const json = serializeAsJSON(
-      api.getSceneElements(),
-      api.getAppState(),
-      api.getFiles(),
-      "local",
-    );
-    download(json, `${drawing.name}.excalidraw`);
-  };
-
-  /**
-   * Exports the current scene as a 2x-scale PNG image.
-   */
-  const handleExportPng = async (): Promise<void> => {
-    const api = apiRef.current;
-    if (!api || !drawing) return;
-    const blob = await exportToBlob({
-      elements: api.getSceneElements(),
-      appState: api.getAppState(),
-      files: api.getFiles(),
-      getDimensions: (width: number, height: number) => ({
-        width,
-        height,
-        scale: 2,
-      }),
-    });
-    download(blob, `${drawing.name}.png`);
-  };
-
-  /**
-   * Exports the current scene as an SVG document.
-   */
-  const handleExportSvg = async (): Promise<void> => {
-    const api = apiRef.current;
-    if (!api || !drawing) return;
-    const svg = await exportToSvg({
-      elements: api.getSceneElements(),
-      appState: api.getAppState(),
-      files: api.getFiles(),
-    });
-    download(svg.outerHTML, `${drawing.name}.svg`);
-  };
-
   return (
     <div className="editor-layout">
       <header className="editor-topbar">
@@ -299,18 +255,13 @@ export function EditorPage(): ReactElement {
           ← All drawings
         </Link>
         <span className="editor-title">{drawing?.name ?? "…"}</span>
-        <div className="editor-actions">
-          <button className="btn btn-small" onClick={() => void handleExportSvg()}>
-            SVG
-          </button>
-          <button className="btn btn-small" onClick={() => void handleExportPng()}>
-            PNG
-          </button>
-          <button className="btn btn-small btn-primary" onClick={handleExportExcalidraw}>
-            Export .excalidraw
-          </button>
+        <div className="editor-status">
           {status.kind === "saving" && <span className="status">Saving…</span>}
-          {status.kind === "saved" && <span className="status status-ok">Saved</span>}
+          {status.kind === "saved" && (
+            <span className="status status-ok" title="All changes saved">
+              <CheckIcon />
+            </span>
+          )}
           {status.kind === "error" && (
             <span className="status status-error" title={status.message}>
               Save failed

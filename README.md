@@ -77,7 +77,8 @@ docker cp ./backup/excalistack.db excalistack:/app/data/
     -H 'content-type: application/json' \
     --data-binary @my-drawing.excalidraw
   ```
-- **Export** — editor toolbar (`.excalidraw`, PNG, SVG) or:
+- **Export** — the editor's built-in menu (`.excalidraw`, PNG, SVG), the card
+  download action, or:
   ```shell
   curl -OJ http://localhost:3000/api/drawings/<id>/export
   ```
