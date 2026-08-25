@@ -1,0 +1,23 @@
+services:
+  excalistack:
+    build: .
+    # To use a prebuilt image instead of building locally:
+    # image: ghcr.io/yash/excalistack:latest
+    container_name: excalistack
+    ports:
+      - "3000:3000"
+    volumes:
+      # Named volume works out of the box. To bind-mount a host directory
+      # instead, it must be writable by uid/gid 1000 (the container's user):
+      #   mkdir data && sudo chown -R 1000:1000 data
+      #   ./data:/app/data
+      - excalistack_data:/app/data
+    environment:
+      # All optional; defaults shown.
+      - PORT=3000
+      - HOST=0.0.0.0
+      - DATA_DIR=/app/data
+    restart: unless-stopped
+
+volumes:
+  excalistack_data:
