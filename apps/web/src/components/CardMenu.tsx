@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
+
+/** Gap between the trigger button and the popover, in pixels. */
+const POPOVER_GAP_PX = 6;
+
+/** Minimum distance kept between the popover and the viewport edge. */
+const VIEWPORT_PADDING_PX = 8;
 
 /** Props accepted by {@link CardMenu}. */
 export interface CardMenuProps {
@@ -13,12 +19,41 @@ export interface CardMenuProps {
 
 /**
  * Overflow ("three dot") menu attached to a drawing card. Renders a
- * trigger button plus a small dropdown with rename/download/delete
+ * trigger button plus a small popover with rename/download/delete
  * actions. Closes on outside click or Escape.
+ *
+ * The popover is positioned with `fixed` coordinates measured from the
+ * trigger so it is never clipped by the card's rounded corners or
+ * `overflow: hidden`, flipping above the trigger when space below is
+ * insufficient.
  */
 export function CardMenu(props: CardMenuProps): ReactElement {
   const [open, setOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState<{
+    top: number;
+    left: number;
+    visibility: "hidden" | "visible";
+  }>({ top: 0, left: 0, visibility: "hidden" });
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Position the popover next to the trigger once it is mounted.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current?.getBoundingClientRect();
+    const popover = popoverRef.current?.getBoundingClientRect();
+    if (!trigger || !popover) return;
+
+    const belowTop = trigger.bottom + POPOVER_GAP_PX;
+    const fitsBelow = belowTop + popover.height <= window.innerHeight - VIEWPORT_PADDING_PX;
+    const top = fitsBelow ? belowTop : trigger.top - popover.height - POPOVER_GAP_PX;
+    const left = Math.max(
+      VIEWPORT_PADDING_PX,
+      Math.min(trigger.right - popover.width, window.innerWidth - popover.width - VIEWPORT_PADDING_PX),
+    );
+    setPopoverStyle({ top, left, visibility: "visible" });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -54,6 +89,7 @@ export function CardMenu(props: CardMenuProps): ReactElement {
   return (
     <div ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         className="card-menu-trigger"
         aria-label="Drawing actions"
@@ -70,7 +106,7 @@ export function CardMenu(props: CardMenuProps): ReactElement {
       {open && (
         <>
           <div className="menu-backdrop" />
-          <div className="menu" role="menu">
+          <div className="menu" role="menu" ref={popoverRef} style={popoverStyle}>
             <button
               type="button"
               className="menu-item"
