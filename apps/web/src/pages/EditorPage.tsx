@@ -14,7 +14,8 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import { ExcalidrawDocumentSchema, pickExportAppState } from "@excalistack/shared";
 import type { StoredDrawing } from "@excalistack/shared";
-import { getDrawing, updateDrawing } from "../api";
+import { getDrawing, renameDrawing, updateDrawing } from "../api";
+import { InlineRename } from "../components/InlineRename";
 import { useTheme } from "../theme";
 
 /** Debounce window (ms) applied before an autosave round-trip starts. */
@@ -117,6 +118,7 @@ export function EditorPage(): ReactElement {
   const [drawing, setDrawing] = useState<StoredDrawing | null>(null);
   const [status, setStatus] = useState<EditorStatus>({ kind: "loading" });
   const [flash, setFlash] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
 
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const latestSceneRef = useRef<SceneSnapshot | null>(null);
@@ -248,13 +250,48 @@ export function EditorPage(): ReactElement {
     };
   }, [drawing]);
 
+  /**
+   * Commits an inline title rename against the API.
+   *
+   * @param name - New name chosen by the user.
+   */
+  const handleRenameCommit = useCallback(
+    async (name: string): Promise<void> => {
+      setRenaming(false);
+      if (!drawing || name === drawing.name) return;
+      try {
+        const updated = await renameDrawing(drawing.id, name);
+        setDrawing({ ...drawing, ...updated });
+        setStatus({ kind: "saved" });
+      } catch (cause) {
+        setStatus({
+          kind: "error",
+          message: cause instanceof Error ? cause.message : String(cause),
+        });
+      }
+    },
+    [drawing],
+  );
+
   return (
     <div className="editor-layout">
       <header className="editor-topbar">
         <Link className="btn btn-small" to="/">
           ← All drawings
         </Link>
-        <span className="editor-title">{drawing?.name ?? "…"}</span>
+        {drawing ? (
+          <InlineRename
+            value={drawing.name}
+            editing={renaming}
+            onStart={() => setRenaming(true)}
+            onCommit={(name) => void handleRenameCommit(name)}
+            onCancel={() => setRenaming(false)}
+            className="editor-title"
+            inputClassName="editor-title-input"
+          />
+        ) : (
+          <span className="editor-title">…</span>
+        )}
         <div className="editor-status">
           {status.kind === "saving" && <span className="status">Saving…</span>}
           {status.kind === "saved" && (

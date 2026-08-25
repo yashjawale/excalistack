@@ -10,6 +10,7 @@ import {
 } from "../api";
 import type { DrawingSummary } from "@excalistack/shared";
 import { CardMenu } from "../components/CardMenu";
+import { InlineRename } from "../components/InlineRename";
 import { useTheme } from "../theme";
 
 /**
@@ -85,6 +86,7 @@ export function Dashboard(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -120,13 +122,23 @@ export function Dashboard(): ReactElement {
   };
 
   /**
-   * Renames a drawing after asking the user for the new name.
+   * Enters inline edit mode for a drawing's name on its card.
    *
    * @param drawing - Drawing to rename.
    */
-  const handleRename = async (drawing: DrawingSummary): Promise<void> => {
-    const name = window.prompt("Rename drawing", drawing.name)?.trim();
-    if (!name || name === drawing.name) return;
+  const handleRename = (drawing: DrawingSummary): void => {
+    setRenamingId(drawing.id);
+  };
+
+  /**
+   * Commits an inline rename and refreshes the list.
+   *
+   * @param drawing - Drawing being renamed.
+   * @param name - New name chosen by the user.
+   */
+  const handleRenameCommit = async (drawing: DrawingSummary, name: string): Promise<void> => {
+    setRenamingId(null);
+    if (name === drawing.name) return;
     setBusy(true);
     try {
       await renameDrawing(drawing.id, name);
@@ -259,7 +271,15 @@ export function Dashboard(): ReactElement {
                     )}
                   </a>
                   <div className="card-body">
-                    <span className="card-name">{drawing.name}</span>
+                    <InlineRename
+                      value={drawing.name}
+                      editing={renamingId === drawing.id}
+                      onStart={() => handleRename(drawing)}
+                      onCommit={(name) => void handleRenameCommit(drawing, name)}
+                      onCancel={() => setRenamingId(null)}
+                      className="card-name"
+                      inputClassName="card-name-input"
+                    />
                     <span className="card-meta">
                       {drawing.elementCount} element{drawing.elementCount === 1 ? "" : "s"} ·{" "}
                       {formatTimestamp(drawing.updatedAt)}
