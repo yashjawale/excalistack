@@ -1,0 +1,11 @@
+Excalifont
+Copyright 2022-present The Excalidraw contributors
+https://github.com/excalidraw/excalidraw
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied in the excalidraw repository (OFL.txt) and available at:
+https://openfontlicense.org
+
+The font files vendored here are subsets taken from the @excalidraw/excalidraw
+npm package (dist/prod/fonts/Excalifont) and are used for Excalistack's brand
+wordmark.

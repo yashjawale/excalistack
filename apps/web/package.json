@@ -11,6 +11,7 @@
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
     "@excalistack/shared": "workspace:*",
+    "@fontsource/assistant": "^5.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.4"

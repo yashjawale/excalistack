@@ -12,7 +12,8 @@ you a dashboard of all of them, and round-trips native `.excalidraw` files.
 - 🖱️ **Drag-and-drop import** onto the editor canvas
 - 🪶 **Single lightweight image** — one container, one port, no external database
 - 🔌 **REST API** for scripted access (`/api/drawings`)
-- 🧩 MCP-server-ready architecture (the storage layer is exposed behind a clean interface)
+- 🛜 **Fully self-contained** — UI and editor fonts are served locally, no CDN
+- 🧩 **MCP-server-ready** — storage sits behind a clean `DrawingStore` interface
 
 ## Quick start
 

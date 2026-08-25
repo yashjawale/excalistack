@@ -6,6 +6,9 @@ import {
   exportToBlob,
   restore,
 } from "@excalidraw/excalidraw";
+// Component styles for the canvas; loaded only on editor pages so the
+// dashboard does not pull in the excalidraw stylesheet.
+import "@excalidraw/excalidraw/index.css";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type {
   BinaryFileData,
