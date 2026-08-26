@@ -106,12 +106,38 @@ export type ExcalidrawDocument = {
   files: BinaryFilesMap;
 };
 
+/** Metadata about a stored folder. */
+export interface FolderSummary {
+  /** Unique opaque identifier. */
+  id: string;
+  /** Folder display name. */
+  name: string;
+  /** Number of drawings currently in the folder. */
+  drawingCount: number;
+  /** Epoch milliseconds of creation. */
+  createdAt: number;
+}
+
+/** Body for `POST /api/folders`. */
+export interface CreateFolderInput {
+  /** Folder display name. */
+  name: string;
+}
+
+/** Body for `PATCH /api/folders/:id`. */
+export interface RenameFolderInput {
+  /** New folder display name. */
+  name: string;
+}
+
 /** Metadata about a stored drawing (no scene payload). */
 export interface DrawingSummary {
   /** Unique opaque identifier. */
   id: string;
   /** Human-readable display name. */
   name: string;
+  /** Identifier of the folder containing this drawing. */
+  folderId: string;
   /** Small PNG preview as a data URL, or `null` for empty drawings. */
   thumbnail: string | null;
   /** Number of non-deleted elements in the scene. */
@@ -134,6 +160,8 @@ export interface StoredDrawing extends DrawingSummary {
 export interface CreateDrawingInput {
   /** Display name; defaults to `"Untitled drawing"` server-side. */
   name?: string;
+  /** Folder to place the drawing in; defaults to the Drafts folder. */
+  folderId?: string;
   /** Initial scene content. Defaults to an empty scene. */
   scene?: DrawingScene;
   /** Embedded assets referenced by the initial scene. */
@@ -152,15 +180,18 @@ export interface UpdateDrawingInput {
   thumbnail?: string | null;
 }
 
-/** Body for `PATCH /api/drawings/:id` (rename only). */
+/** Body for `PATCH /api/drawings/:id` (rename and/or move). */
 export interface RenameDrawingInput {
   /** New display name. */
-  name: string;
+  name?: string;
+  /** Folder to move the drawing into. */
+  folderId?: string;
 }
 
 /** Validates {@link CreateDrawingInput}. */
 export const CreateDrawingInputSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
+  folderId: z.string().min(1).optional(),
   scene: DrawingSceneSchema.optional(),
   files: z.record(z.string(), BinaryFileSchema).optional(),
   thumbnail: z.string().nullable().optional(),
@@ -173,10 +204,25 @@ export const UpdateDrawingInputSchema = z.object({
   thumbnail: z.string().nullable().optional(),
 }) satisfies z.ZodType<UpdateDrawingInput>;
 
-/** Validates {@link RenameDrawingInput}. */
-export const RenameDrawingInputSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-}) satisfies z.ZodType<RenameDrawingInput>;
+/** Validates {@link RenameDrawingInput} (rename and/or move). */
+export const RenameDrawingInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200).optional(),
+    folderId: z.string().min(1).optional(),
+  })
+  .refine((input) => input.name !== undefined || input.folderId !== undefined, {
+    message: "Provide a name and/or folderId",
+  }) satisfies z.ZodType<RenameDrawingInput>;
+
+/** Validates {@link CreateFolderInput}. */
+export const CreateFolderInputSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+}) satisfies z.ZodType<CreateFolderInput>;
+
+/** Validates {@link RenameFolderInput}. */
+export const RenameFolderInputSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+}) satisfies z.ZodType<RenameFolderInput>;
 
 /**
  * Counts elements that are not marked deleted, which is what should be

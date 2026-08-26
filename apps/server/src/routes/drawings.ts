@@ -7,6 +7,7 @@ import {
   pickExportAppState,
   toExcalidrawDocument,
 } from "@excalistack/shared";
+import type { DrawingSummary } from "@excalistack/shared";
 import type { DrawingStore } from "../store.js";
 
 /**
@@ -21,21 +22,28 @@ import type { DrawingStore } from "../store.js";
 export async function registerDrawingRoutes(app: FastifyInstance, store: DrawingStore): Promise<void> {
   /**
    * Lists stored drawings, most recently updated first.
+   *
+   * Supports an optional `folderId` query parameter to scope the listing
+   * to a single folder.
    */
-  app.get("/api/drawings", async () => {
-    return { drawings: store.list() };
+  app.get("/api/drawings", async (request) => {
+    const { folderId } = request.query as { folderId?: string };
+    return { drawings: store.list(folderId || undefined) };
   });
 
   /**
    * Creates a new drawing, optionally seeded with an imported scene.
    *
    * Accepts two body shapes:
-   * - `{ name?, scene?, files?, thumbnail? }` (API-native form)
+   * - `{ name?, folderId?, scene?, files?, thumbnail? }` (API-native form)
    * - a raw `.excalidraw` document (`type: "excalidraw"`), exactly as
    *   saved by excalidraw.com — enabling scriptable imports such as
    *   `curl --data-binary @drawing.excalidraw`
+   *
+   * Raw documents land in the Drafts folder (or `folderId` query param).
    */
   app.post("/api/drawings", async (request, reply) => {
+    const { folderId } = request.query as { folderId?: string };
     const body: unknown = request.body ?? {};
     if (
       typeof body === "object" &&
@@ -45,6 +53,7 @@ export async function registerDrawingRoutes(app: FastifyInstance, store: Drawing
       const document = ExcalidrawDocumentSchema.parse(body);
       return reply.code(201).send(
         store.create({
+          folderId: folderId || undefined,
           scene: {
             elements: document.elements,
             appState: pickExportAppState(document.appState),
@@ -54,6 +63,9 @@ export async function registerDrawingRoutes(app: FastifyInstance, store: Drawing
       );
     }
     const input = CreateDrawingInputSchema.parse(body);
+    if (input.folderId && !folderExists(store, input.folderId)) {
+      return reply.code(400).send({ message: `Folder "${input.folderId}" not found` });
+    }
     const drawing = store.create(input);
     return reply.code(201).send(drawing);
   });
@@ -72,14 +84,31 @@ export async function registerDrawingRoutes(app: FastifyInstance, store: Drawing
   });
 
   /**
-   * Renames a drawing without touching its content.
+   * Renames and/or moves a drawing without touching its content.
    */
   app.patch("/api/drawings/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const input = RenameDrawingInputSchema.parse(request.body);
-    const summary = store.rename(id, input.name);
-    if (!summary) {
+    if (input.folderId && !folderExists(store, input.folderId)) {
+      return reply.code(400).send({ message: `Folder "${input.folderId}" not found` });
+    }
+    if (!store.get(id)) {
       return reply.code(404).send({ message: `Drawing "${id}" not found` });
+    }
+    let summary: DrawingSummary = store.get(id)!;
+    if (input.name && input.name !== summary.name) {
+      const renamed = store.rename(id, input.name);
+      if (!renamed) {
+        return reply.code(404).send({ message: `Drawing "${id}" not found` });
+      }
+      summary = renamed;
+    }
+    if (input.folderId) {
+      const moved = store.move(id, input.folderId);
+      if (!moved) {
+        return reply.code(404).send({ message: `Drawing "${id}" not found` });
+      }
+      summary = moved;
     }
     return summary;
   });
@@ -140,4 +169,15 @@ function exportFileName(name: string): string {
       .trim()
       .replace(/\s+/g, "-") || "drawing";
   return `${slug}.excalidraw`;
+}
+
+/**
+ * Checks whether a folder with the given identifier exists.
+ *
+ * @param store - Persistence backend.
+ * @param folderId - Folder identifier to verify.
+ * @returns `true` when the folder exists.
+ */
+function folderExists(store: DrawingStore, folderId: string): boolean {
+  return store.listFolders().some((folder) => folder.id === folderId);
 }

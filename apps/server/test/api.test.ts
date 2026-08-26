@@ -132,6 +132,120 @@ describe("API", () => {
   });
 });
 
+describe("Folders API", () => {
+  it("creates, lists, renames and deletes folders", async () => {
+    const app = await makeApp();
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/folders",
+      payload: { name: "Architecture" },
+    });
+    expect(created.statusCode).toBe(201);
+    const folder = created.json();
+    expect(folder).toMatchObject({ name: "Architecture", drawingCount: 0 });
+
+    const listed = await app.inject({ method: "GET", url: "/api/folders" });
+    const names = listed.json().folders.map((f: { name: string }) => f.name);
+    expect(names).toEqual(["Drafts", "Architecture"]);
+
+    const renamed = await app.inject({
+      method: "PATCH",
+      url: `/api/folders/${folder.id}`,
+      payload: { name: "Systems" },
+    });
+    expect(renamed.json().name).toBe("Systems");
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/api/folders/${folder.id}`,
+    });
+    expect(deleted.statusCode).toBe(204);
+  });
+
+  it("rejects duplicate folder names case-insensitively with 409", async () => {
+    const app = await makeApp();
+    await app.inject({ method: "POST", url: "/api/folders", payload: { name: "Work" } });
+
+    const dup = await app.inject({
+      method: "POST",
+      url: "/api/folders",
+      payload: { name: "work" },
+    });
+    expect(dup.statusCode).toBe(409);
+  });
+
+  it("protects the Drafts folder from deletion with 409", async () => {
+    const app = await makeApp();
+    const folders = (await app.inject({ method: "GET", url: "/api/folders" })).json().folders;
+    const drafts = folders.find((f: { name: string }) => f.name === "Drafts");
+
+    const res = await app.inject({ method: "DELETE", url: `/api/folders/${drafts.id}` });
+    expect(res.statusCode).toBe(409);
+  });
+
+  it("scopes drawing listings by folder and moves drawings via PATCH", async () => {
+    const app = await makeApp();
+    const folder = (
+      await app.inject({ method: "POST", url: "/api/folders", payload: { name: "Move target" } })
+    ).json();
+    const drawing = (
+      await app.inject({
+        method: "POST",
+        url: "/api/drawings",
+        payload: { name: "Wanderer" },
+      })
+    ).json();
+
+    const scoped = await app.inject({
+      method: "GET",
+      url: `/api/drawings?folderId=${folder.id}`,
+    });
+    expect(scoped.json().drawings).toEqual([]);
+
+    const moved = await app.inject({
+      method: "PATCH",
+      url: `/api/drawings/${drawing.id}`,
+      payload: { folderId: folder.id },
+    });
+    expect(moved.json().folderId).toBe(folder.id);
+
+    const after = await app.inject({
+      method: "GET",
+      url: `/api/drawings?folderId=${folder.id}`,
+    });
+    expect(after.json().drawings).toHaveLength(1);
+
+    const badFolder = await app.inject({
+      method: "PATCH",
+      url: `/api/drawings/${drawing.id}`,
+      payload: { folderId: "nope" },
+    });
+    expect(badFolder.statusCode).toBe(400);
+  });
+
+  it("creates drawings into a given folder and rejects unknown folders", async () => {
+    const app = await makeApp();
+    const folder = (
+      await app.inject({ method: "POST", url: "/api/folders", payload: { name: "Inbox" } })
+    ).json();
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/drawings",
+      payload: { name: "Placed", folderId: folder.id },
+    });
+    expect(created.json().folderId).toBe(folder.id);
+
+    const bad = await app.inject({
+      method: "POST",
+      url: "/api/drawings",
+      payload: { folderId: "nope" },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+});
+
 describe("Static hosting", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "excalistack-web-"));
 

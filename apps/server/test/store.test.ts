@@ -16,6 +16,69 @@ function makeStore(): SqliteDrawingStore {
 const rect = (id: string) => ({ id, type: "rectangle", x: 0, y: 0, width: 10, height: 10 });
 
 describe("SqliteDrawingStore", () => {
+  it("seeds a Drafts folder and places new drawings in it by default", () => {
+    const store = makeStore();
+    const folders = store.listFolders();
+
+    expect(folders).toHaveLength(1);
+    expect(folders[0]?.name).toBe("Drafts");
+    expect(folders[0]?.drawingCount).toBe(0);
+    expect(store.draftsFolderId()).toBe(folders[0]?.id);
+
+    const drawing = store.create({});
+    expect(drawing.folderId).toBe(store.draftsFolderId());
+    expect(store.listFolders()[0]?.drawingCount).toBe(1);
+  });
+
+  it("creates, renames and deletes folders; delete reassigns drawings to Drafts", () => {
+    const store = makeStore();
+    const folder = store.createFolder("Architecture");
+    const drawing = store.create({ folderId: folder.id });
+
+    const renamed = store.renameFolder(folder.id, "Systems");
+    expect(renamed?.name).toBe("Systems");
+    expect(store.listFolders().map((f) => f.name)).toEqual(["Drafts", "Systems"]);
+
+    expect(store.deleteFolder(folder.id)).toBe(true);
+    expect(store.listFolders().map((f) => f.name)).toEqual(["Drafts"]);
+    expect(store.get(drawing.id)?.folderId).toBe(store.draftsFolderId());
+  });
+
+  it("refuses to delete the Drafts folder and reports unknown folders", () => {
+    const store = makeStore();
+
+    expect(() => store.deleteFolder(store.draftsFolderId())).toThrow();
+    expect(store.deleteFolder("missing")).toBe(false);
+    expect(store.renameFolder("missing", "x")).toBeNull();
+  });
+
+  it("filters listings by folder", () => {
+    const store = makeStore();
+    const folder = store.createFolder("Work");
+    const inFolder = store.create({ folderId: folder.id, name: "Inside" });
+    store.create({ name: "Outside" });
+
+    const scoped = store.list(folder.id);
+    expect(scoped.map((d) => d.name)).toEqual(["Inside"]);
+    expect(scoped[0]?.folderId).toBe(folder.id);
+    expect(store.list()).toHaveLength(2);
+    expect(inFolder.folderId).toBe(folder.id);
+  });
+
+  it("moves drawings between folders without bumping updated_at", async () => {
+    const store = makeStore();
+    const target = store.createFolder("Target");
+    const drawing = store.create({ name: "Mover" });
+    const before = drawing.updatedAt;
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const moved = store.move(drawing.id, target.id);
+
+    expect(moved?.folderId).toBe(target.id);
+    expect(moved?.updatedAt).toBe(before);
+    expect(store.list(target.id).map((d) => d.id)).toEqual([drawing.id]);
+  });
+
   it("creates an empty drawing with server-side defaults", () => {
     const store = makeStore();
     const drawing = store.create({});

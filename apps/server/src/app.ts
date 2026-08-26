@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyLoggerOptions } from "fastify";
 import fastify from "fastify";
 import { ZodError } from "zod";
 import { registerDrawingRoutes } from "./routes/drawings.js";
+import { registerFolderRoutes } from "./routes/folders.js";
 import type { DrawingStore } from "./store.js";
 
 /** Options accepted by {@link buildApp}. */
@@ -50,6 +51,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.get("/api/health", async () => ({ ok: true }));
 
   await registerDrawingRoutes(app, store);
+  await registerFolderRoutes(app, store);
 
   const webDistDir = options.webDistDir ?? null;
   if (webDistDir) {
