@@ -8,6 +8,8 @@ you a dashboard of all of them, and round-trips native `.excalidraw` files.
 
 - 💾 **Server-side persistence** — drawings live in SQLite on your server, not in a browser
 - 🗂️ **Multiple drawings** with a thumbnail dashboard, rename, and delete
+- 📁 **Folders** — organize drawings, browse from the sidebar; new/import land in the
+  selected folder and the selection persists across reloads
 - 📥📤 **Import/export** — open `.excalidraw` files, download as `.excalidraw`, PNG, or SVG
 - 🖱️ **Drag-and-drop import** onto the editor canvas
 - 🪶 **Single lightweight image** — one container, one port, no external database
@@ -86,16 +88,20 @@ docker cp ./backup/excalistack.db excalistack:/app/data/
 
 ## REST API
 
-| Method   | Path                        | Description                              |
-| -------- | --------------------------- | ---------------------------------------- |
-| `GET`    | `/api/health`               | Liveness probe                           |
-| `GET`    | `/api/drawings`             | List drawings (summaries + thumbnails)   |
+| Method   | Path                        | Description                                  |
+| -------- | --------------------------- | -------------------------------------------- |
+| `GET`    | `/api/health`               | Liveness probe                               |
+| `GET`    | `/api/drawings`             | List drawings; `?folderId=` scopes to folder |
 | `POST`   | `/api/drawings`             | Create; body = API form or raw `.excalidraw` |
-| `GET`    | `/api/drawings/:id`         | Full drawing incl. scene and files       |
-| `PUT`    | `/api/drawings/:id`         | Replace scene/files/thumbnail (autosave) |
-| `PATCH`  | `/api/drawings/:id`         | Rename                                   |
-| `DELETE` | `/api/drawings/:id`         | Delete permanently                       |
-| `GET`    | `/api/drawings/:id/export`  | Download as `.excalidraw`                |
+| `GET`    | `/api/drawings/:id`         | Full drawing incl. scene and files           |
+| `PUT`    | `/api/drawings/:id`         | Replace scene/files/thumbnail (autosave)     |
+| `PATCH`  | `/api/drawings/:id`         | Rename and/or move (`{name?, folderId?}`)    |
+| `DELETE` | `/api/drawings/:id`         | Delete permanently                           |
+| `GET`    | `/api/drawings/:id/export`  | Download as `.excalidraw`                    |
+| `GET`    | `/api/folders`              | List folders with drawing counts             |
+| `POST`   | `/api/folders`              | Create folder                                |
+| `PATCH`  | `/api/folders/:id`          | Rename folder                                |
+| `DELETE` | `/api/folders/:id`          | Delete folder (contents move to Drafts)      |
 
 ## Architecture
 

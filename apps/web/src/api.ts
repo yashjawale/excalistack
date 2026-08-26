@@ -2,6 +2,7 @@ import { ExcalidrawDocumentSchema, pickExportAppState } from "@excalistack/share
 import type {
   CreateDrawingInput,
   DrawingSummary,
+  FolderSummary,
   StoredDrawing,
   UpdateDrawingInput,
 } from "@excalistack/shared";
@@ -37,12 +38,52 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
 }
 
 /**
- * Lists all stored drawings, most recently updated first.
- *
- * @returns Drawing summaries without scene payloads.
+ * Lists all folders with their drawing counts, oldest first.
  */
-export function listDrawings(): Promise<{ drawings: DrawingSummary[] }> {
-  return request("/api/drawings");
+export function listFolders(): Promise<{ folders: FolderSummary[] }> {
+  return request("/api/folders");
+}
+
+/**
+ * Creates a folder.
+ *
+ * @param name - Folder display name.
+ */
+export function createFolder(name: string): Promise<FolderSummary> {
+  return request("/api/folders", { method: "POST", body: JSON.stringify({ name }) });
+}
+
+/**
+ * Renames a folder.
+ *
+ * @param id - Folder identifier.
+ * @param name - New display name.
+ */
+export function renameFolder(id: string, name: string): Promise<FolderSummary> {
+  return request(`/api/folders/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
+/**
+ * Deletes a folder; its drawings move to the Drafts folder.
+ *
+ * @param id - Folder identifier.
+ */
+export async function deleteFolder(id: string): Promise<void> {
+  await request<void>(`/api/folders/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+/**
+ * Lists drawings, optionally scoped to a folder, most recently updated
+ * first.
+ *
+ * @param folderId - Folder to scope the listing to.
+ */
+export function listDrawings(folderId?: string): Promise<{ drawings: DrawingSummary[] }> {
+  const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : "";
+  return request(`/api/drawings${query}`);
 }
 
 /**
@@ -80,15 +121,18 @@ export function updateDrawing(
 }
 
 /**
- * Renames a drawing.
+ * Renames and/or moves a drawing.
  *
  * @param id - Drawing identifier.
- * @param name - New display name.
+ * @param input - New name and/or target folder.
  */
-export function renameDrawing(id: string, name: string): Promise<DrawingSummary> {
+export function renameOrMoveDrawing(
+  id: string,
+  input: { name?: string; folderId?: string },
+): Promise<DrawingSummary> {
   return request(`/api/drawings/${encodeURIComponent(id)}`, {
     method: "PATCH",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(input),
   });
 }
 
@@ -107,11 +151,12 @@ export async function deleteDrawing(id: string): Promise<void> {
  * surface before any network traffic.
  *
  * @param file - File object from an `<input type="file">` or drop event.
+ * @param folderId - Folder to place the imported drawing in.
  * @returns The freshly created drawing.
  * @throws Error when the file is not valid JSON or not a valid
  * `.excalidraw` document.
  */
-export async function importDrawingFile(file: File): Promise<StoredDrawing> {
+export async function importDrawingFile(file: File, folderId?: string): Promise<StoredDrawing> {
   const text = await file.text();
   let raw: unknown;
   try {
@@ -128,6 +173,7 @@ export async function importDrawingFile(file: File): Promise<StoredDrawing> {
 
   return createDrawing({
     name: file.name.replace(/\.(excalidraw|json|excalidrawplus)$/i, "") || file.name,
+    folderId,
     scene: {
       elements: document.elements,
       appState: pickExportAppState(document.appState),

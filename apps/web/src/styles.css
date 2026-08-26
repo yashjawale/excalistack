@@ -262,6 +262,86 @@ code {
   padding: 12px 8px 2px;
 }
 
+.folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.folder-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.folder-row .sidebar-btn {
+  flex: 1;
+  min-width: 0;
+  padding-right: 30px;
+}
+
+.folder-row.active .sidebar-btn,
+.folder-row.active .sidebar-btn:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.folder-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.folder-menu-trigger {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.folder-row:hover .folder-menu-trigger,
+.folder-menu-trigger:focus-visible,
+.folder-menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.folder-menu-trigger[aria-expanded="true"] {
+  z-index: 22;
+  color: var(--text);
+}
+
+.sidebar-rename-input {
+  font: inherit;
+  font-size: 14.5px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 6px 9px;
+  width: 100%;
+  outline: none;
+}
+
 .sidebar-btn {
   appearance: none;
   border: none;
@@ -432,10 +512,27 @@ code {
   margin-top: 8px;
 }
 
+.content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.content-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .content-heading {
   font-size: 17px;
   font-weight: 600;
-  margin: 0 0 18px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-name-input {
@@ -495,8 +592,25 @@ code {
   text-decoration: none;
 }
 
-.menu-item:hover {
+.menu-item:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menu-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-check {
+  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .menu-item-danger {

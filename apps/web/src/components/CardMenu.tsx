@@ -1,11 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
+import type { FolderSummary } from "@excalistack/shared";
 
 /** Gap between the trigger button and the popover, in pixels. */
 const POPOVER_GAP_PX = 6;
 
 /** Minimum distance kept between the popover and the viewport edge. */
 const VIEWPORT_PADDING_PX = 8;
+
+/** Which content the popover currently shows. */
+type MenuView = "actions" | "move";
 
 /** Props accepted by {@link CardMenu}. */
 export interface CardMenuProps {
@@ -15,12 +19,19 @@ export interface CardMenuProps {
   onDelete: () => void;
   /** URL of the `.excalidraw` download endpoint for this card. */
   downloadUrl: string;
+  /** All folders, for the "Move to…" picker. */
+  folders: FolderSummary[];
+  /** Folder the drawing currently lives in. */
+  currentFolderId: string;
+  /** Invoked with the target folder id after a "Move to…" pick. */
+  onMove: (folderId: string) => void;
 }
 
 /**
  * Overflow ("three dot") menu attached to a drawing card. Renders a
  * trigger button plus a small popover with rename/download/delete
- * actions. Closes on outside click or Escape.
+ * actions and a "Move to…" folder picker view. Closes on outside click
+ * or Escape.
  *
  * The popover is positioned with `fixed` coordinates measured from the
  * trigger so it is never clipped by the card's rounded corners or
@@ -29,6 +40,7 @@ export interface CardMenuProps {
  */
 export function CardMenu(props: CardMenuProps): ReactElement {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<MenuView>("actions");
   const [popoverStyle, setPopoverStyle] = useState<{
     top: number;
     left: number;
@@ -37,6 +49,13 @@ export function CardMenu(props: CardMenuProps): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Return to the action list whenever the menu closes.
+  useEffect(() => {
+    if (!open) {
+      setView("actions");
+    }
+  }, [open]);
 
   // Position the popover next to the trigger once it is mounted.
   useLayoutEffect(() => {
@@ -53,7 +72,7 @@ export function CardMenu(props: CardMenuProps): ReactElement {
       Math.min(trigger.right - popover.width, window.innerWidth - popover.width - VIEWPORT_PADDING_PX),
     );
     setPopoverStyle({ top, left, visibility: "visible" });
-  }, [open]);
+  }, [open, view]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,8 +81,6 @@ export function CardMenu(props: CardMenuProps): ReactElement {
      * Closes the menu on scroll anywhere in the document — the popover
      * is positioned with fixed viewport coordinates that would otherwise
      * go stale and detach from its trigger.
-     *
-     * @param event - Scroll event (any scrollable ancestor).
      */
     const handleScroll = (): void => {
       setOpen(false);
@@ -120,35 +137,86 @@ export function CardMenu(props: CardMenuProps): ReactElement {
         <>
           <div className="menu-backdrop" />
           <div className="menu" role="menu" ref={popoverRef} style={popoverStyle}>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                props.onRename();
-              }}
-            >
-              Rename
-            </button>
-            <a className="menu-item" role="menuitem" href={props.downloadUrl}>
-              Download
-            </a>
-            <div className="menu-separator" />
-            <button
-              type="button"
-              className="menu-item menu-item-danger"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                props.onDelete();
-              }}
-            >
-              Delete
-            </button>
+            {view === "actions" ? (
+              <>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    props.onRename();
+                  }}
+                >
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => setView("move")}
+                >
+                  Move to…
+                </button>
+                <a className="menu-item" role="menuitem" href={props.downloadUrl}>
+                  Download
+                </a>
+                <div className="menu-separator" />
+                <button
+                  type="button"
+                  className="menu-item menu-item-danger"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    props.onDelete();
+                  }}
+                >
+                  Delete
+                </button>
+              </>
+            ) : (
+              props.folders.map((folder) => (
+                <button
+                  key={folder.id}
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  disabled={folder.id === props.currentFolderId}
+                  onClick={() => {
+                    setOpen(false);
+                    props.onMove(folder.id);
+                  }}
+                >
+                  <span className="menu-item-label">{folder.name}</span>
+                  {folder.id === props.currentFolderId && <MenuCheckIcon />}
+                </button>
+              ))
+            )}
           </div>
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Accent-colored check mark marking the drawing's current folder.
+ */
+function MenuCheckIcon(): ReactElement {
+  return (
+    <svg
+      className="menu-check"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m5 12.5 4.5 4.5L19 7" />
+    </svg>
   );
 }

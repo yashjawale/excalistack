@@ -17,7 +17,7 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import { ExcalidrawDocumentSchema, pickExportAppState } from "@excalistack/shared";
 import type { StoredDrawing } from "@excalistack/shared";
-import { getDrawing, renameDrawing, updateDrawing } from "../api";
+import { getDrawing, renameOrMoveDrawing, updateDrawing } from "../api";
 import { InlineRename } from "../components/InlineRename";
 import { useTheme } from "../theme";
 
@@ -263,7 +263,7 @@ export function EditorPage(): ReactElement {
       setRenaming(false);
       if (!drawing || name === drawing.name) return;
       try {
-        const updated = await renameDrawing(drawing.id, name);
+        const updated = await renameOrMoveDrawing(drawing.id, { name });
         setDrawing({ ...drawing, ...updated });
         setStatus({ kind: "saved" });
       } catch (cause) {
