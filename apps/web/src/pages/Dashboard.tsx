@@ -87,6 +87,8 @@ export function Dashboard(): ReactElement {
   const [newFolderName, setNewFolderName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
+  const fileDragDepth = useRef(0);
+  const [fileDragActive, setFileDragActive] = useState(false);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
 
@@ -409,6 +411,87 @@ export function Dashboard(): ReactElement {
     }
   };
 
+  /**
+   * Checks whether a drag carries files (as opposed to a dragged card).
+   *
+   * @param event - Drag event on the content area.
+   * @returns `true` when the drag contains files.
+   */
+  const dragHasFiles = (event: DragEvent<HTMLElement>): boolean =>
+    event.dataTransfer.types.includes("Files");
+
+  /**
+   * Enters the file-drop state when files are dragged over the content.
+   *
+   * @param event - Drag enter event.
+   */
+  const handleContentDragEnter = (event: DragEvent<HTMLElement>): void => {
+    if (!dragHasFiles(event)) return;
+    event.preventDefault();
+    fileDragDepth.current += 1;
+    setFileDragActive(true);
+  };
+
+  /**
+   * Keeps the content area a valid drop target while files hover it.
+   *
+   * @param event - Drag over event.
+   */
+  const handleContentDragOver = (event: DragEvent<HTMLElement>): void => {
+    if (!dragHasFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  /**
+   * Leaves the file-drop state once the drag fully exits the content.
+   *
+   * @param event - Drag leave event.
+   */
+  const handleContentDragLeave = (event: DragEvent<HTMLElement>): void => {
+    if (!dragHasFiles(event)) return;
+    fileDragDepth.current = Math.max(0, fileDragDepth.current - 1);
+    if (fileDragDepth.current === 0) {
+      setFileDragActive(false);
+    }
+  };
+
+  /**
+   * Imports every dropped `.excalidraw` file into the active folder,
+   * collecting per-file failures into the error banner.
+   *
+   * @param event - Drop event on the content area.
+   */
+  const handleContentDrop = async (event: DragEvent<HTMLElement>): Promise<void> => {
+    if (!dragHasFiles(event)) return;
+    event.preventDefault();
+    fileDragDepth.current = 0;
+    setFileDragActive(false);
+    if (!activeFolderId) return;
+
+    const files = Array.from(event.dataTransfer.files).filter((file) =>
+      /\.(excalidraw|excalidrawplus|json)$/i.test(file.name),
+    );
+    if (files.length === 0) {
+      setError("No .excalidraw files found in the dropped items");
+      return;
+    }
+    setBusy(true);
+    const results = await Promise.allSettled(
+      files.map((file) => importDrawingFile(file, activeFolderId)),
+    );
+    const failures = results
+      .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+      .map((result) =>
+        result.reason instanceof Error ? result.reason.message : String(result.reason),
+      );
+    if (failures.length > 0) {
+      setError(failures.join(" · "));
+    }
+    await Promise.all([refreshFolders(), refreshDrawings(activeFolderId)]);
+    setBusy(false);
+  };
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -451,7 +534,19 @@ export function Dashboard(): ReactElement {
         </div>
       </aside>
 
-      <main className="content">
+      <main
+        className="content"
+        onDragEnter={handleContentDragEnter}
+        onDragOver={handleContentDragOver}
+        onDragLeave={handleContentDragLeave}
+        onDrop={(event) => void handleContentDrop(event)}
+      >
+        {fileDragActive && (
+          <div className="drop-overlay" aria-hidden="true">
+            <div className="drop-overlay-card">Drop to import into "{activeFolder?.name}"</div>
+          </div>
+        )}
+
         {error && (
           <div role="alert" className="banner banner-error">
             {error}
