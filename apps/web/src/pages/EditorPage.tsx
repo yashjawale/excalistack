@@ -117,7 +117,7 @@ function CheckIcon(): ReactElement {
  */
 export function EditorPage(): ReactElement {
   const { id = "" } = useParams();
-  const [theme] = useTheme();
+  const [, theme] = useTheme();
   const [drawing, setDrawing] = useState<StoredDrawing | null>(null);
   const [status, setStatus] = useState<EditorStatus>({ kind: "loading" });
   const [flash, setFlash] = useState<string | null>(null);

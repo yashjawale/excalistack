@@ -378,6 +378,42 @@ code {
 .sidebar-footer {
   border-top: 1px solid var(--border);
   padding-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.theme-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.theme-seg {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  width: 32px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.theme-seg:hover {
+  color: var(--text);
+}
+
+.theme-seg.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
 }
 
 .content {

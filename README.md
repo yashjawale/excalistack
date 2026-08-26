@@ -12,6 +12,7 @@ you a dashboard of all of them, and round-trips native `.excalidraw` files.
   selected folder and the selection persists across reloads
 - 📥📤 **Import/export** — open `.excalidraw` files, download as `.excalidraw`, PNG, or SVG
 - 🖱️ **Drag-and-drop import** onto the editor canvas
+- 🌗 **Light/dark/auto themes** — optional auto mode follows the OS preference live
 - 🪶 **Single lightweight image** — one container, one port, no external database
 - 🔌 **REST API** for scripted access (`/api/drawings`)
 - 🛜 **Fully self-contained** — UI and editor fonts are served locally, no CDN

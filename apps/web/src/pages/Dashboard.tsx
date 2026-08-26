@@ -16,7 +16,7 @@ import type { DrawingSummary, FolderSummary } from "@excalistack/shared";
 import { CardMenu } from "../components/CardMenu";
 import { FolderMenu } from "../components/FolderMenu";
 import { InlineRename } from "../components/InlineRename";
-import { useTheme } from "../theme";
+import { ThemeSwitcher } from "../components/ThemeSwitcher";
 
 /** localStorage key persisting the selected folder across reloads. */
 const FOLDER_STORAGE_KEY = "excalistack-folder";
@@ -74,29 +74,6 @@ function FolderIcon(): ReactElement {
 }
 
 /**
- * Sun icon shown while in dark mode (activates light mode).
- */
-function SunIcon(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-    </svg>
-  );
-}
-
-/**
- * Moon icon shown while in light mode (activates dark mode).
- */
-function MoonIcon(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
-    </svg>
-  );
-}
-
-/**
  * Dashboard listing the drawings of the selected folder, framed by a
  * sidebar holding the brand, folder navigation, and the theme toggle.
  * The selected folder persists across reloads via localStorage; create
@@ -105,7 +82,6 @@ function MoonIcon(): ReactElement {
  */
 export function Dashboard(): ReactElement {
   const navigate = useNavigate();
-  const [theme, toggleTheme] = useTheme();
   const [folders, setFolders] = useState<FolderSummary[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [drawings, setDrawings] = useState<DrawingSummary[]>([]);
@@ -456,10 +432,7 @@ export function Dashboard(): ReactElement {
         <div className="sidebar-spacer" />
 
         <div className="sidebar-footer">
-          <button className="sidebar-btn" onClick={toggleTheme}>
-            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-            {theme === "dark" ? "Light mode" : "Dark mode"}
-          </button>
+          <ThemeSwitcher />
         </div>
       </aside>
 

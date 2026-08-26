@@ -1,45 +1,99 @@
 import { useCallback, useEffect, useState } from "react";
 
-/** Available UI themes, mirroring the Excalidraw editor's `theme` values. */
-export type Theme = "light" | "dark";
+/**
+ * User-selectable theme preference. `"auto"` follows the operating
+ * system's colour-scheme preference live.
+ */
+export type ThemePreference = "light" | "dark" | "auto";
 
-/** localStorage key persisting the user's theme choice. */
+/** Concrete theme actually applied to the UI. */
+export type ResolvedTheme = "light" | "dark";
+
+/** localStorage key persisting the user's theme preference. */
 const STORAGE_KEY = "excalistack-theme";
 
+/** Browser media query tracking the OS colour scheme. */
+const colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
 /**
- * Resolves the initial theme from the persisted preference, falling back
- * to the operating system's colour-scheme setting.
+ * Reads the persisted theme preference, falling back to `"auto"`.
+ * Legacy values (`"light"`/`"dark"`) remain valid.
  *
- * @returns The theme to start with.
+ * @returns The stored preference.
  */
-function resolveInitialTheme(): Theme {
+function resolveStoredPreference(): ThemePreference {
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark") {
-    return stored;
-  }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return stored === "light" || stored === "dark" || stored === "auto"
+    ? stored
+    : "auto";
 }
 
 /**
- * Provides the active UI theme and a toggle. The choice persists to
- * localStorage and is mirrored onto `<html data-theme="…">` so global
- * stylesheet variables react to it. The same value is passed to the
- * embedded `<Excalidraw theme>` prop, keeping dashboard and canvas in
- * lockstep.
+ * Maps a preference to the concrete theme to apply.
  *
- * @returns A `[theme, toggle]` pair.
+ * @param preference - User preference.
+ * @returns The resolved theme.
  */
-export function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>(resolveInitialTheme);
+function resolveTheme(preference: ThemePreference): ResolvedTheme {
+  if (preference === "auto") {
+    return colorSchemeQuery.matches ? "dark" : "light";
+  }
+  return preference;
+}
 
+/**
+ * Provides the theme preference, its concrete resolution, and a setter.
+ *
+ * The preference persists to localStorage; the resolved theme is mirrored
+ * onto `<html data-theme="…">` so global stylesheet variables react to
+ * it, and is what callers pass to the embedded `<Excalidraw theme>` prop.
+ * While the preference is `"auto"`, OS colour-scheme changes re-resolve
+ * the theme live.
+ *
+ * @returns A `[preference, resolved, setPreference]` triple.
+ */
+export function useTheme(): [
+  ThemePreference,
+  ResolvedTheme,
+  (preference: ThemePreference) => void,
+] {
+  const [preference, setPreference] = useState<ThemePreference>(resolveStoredPreference);
+  const [resolved, setResolved] = useState<ResolvedTheme>(() => resolveTheme(preference));
+
+  // Persist the preference whenever it changes.
   useEffect(() => {
-    document.documentElement.dataset["theme"] = theme;
-    localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+    localStorage.setItem(STORAGE_KEY, preference);
+  }, [preference]);
 
-  const toggle = useCallback((): void => {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  // Re-resolve when the preference changes.
+  useEffect(() => {
+    setResolved(resolveTheme(preference));
+  }, [preference]);
+
+  // While on auto, follow live OS colour-scheme changes.
+  useEffect(() => {
+    if (preference !== "auto") return;
+
+    /**
+     * Re-resolves the theme when the OS colour scheme flips.
+     *
+     * @param event - Media query change event.
+     */
+    const handleChange = (event: MediaQueryListEvent): void => {
+      setResolved(event.matches ? "dark" : "light");
+    };
+    colorSchemeQuery.addEventListener("change", handleChange);
+    return () => colorSchemeQuery.removeEventListener("change", handleChange);
+  }, [preference]);
+
+  // Reflect the resolved theme on the document for global CSS.
+  useEffect(() => {
+    document.documentElement.dataset["theme"] = resolved;
+  }, [resolved]);
+
+  const update = useCallback((next: ThemePreference): void => {
+    setPreference(next);
   }, []);
 
-  return [theme, toggle];
+  return [preference, resolved, update];
 }
