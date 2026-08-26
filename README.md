@@ -8,8 +8,9 @@ you a dashboard of all of them, and round-trips native `.excalidraw` files.
 
 - 💾 **Server-side persistence** — drawings live in SQLite on your server, not in a browser
 - 🗂️ **Multiple drawings** with a thumbnail dashboard, rename, and delete
-- 📁 **Folders** — organize drawings, browse from the sidebar; new/import land in the
-  selected folder and the selection persists across reloads
+- 📁 **Nested folders** — organize drawings in a folder tree; drag drawings onto sidebar
+  folders to move them, drop `.excalidraw` files onto the grid to import them
+- 🔍 **Search** — global, case-insensitive match over drawing names and the text inside them
 - 📥📤 **Import/export** — open `.excalidraw` files, download as `.excalidraw`, PNG, or SVG
 - 🖱️ **Drag-and-drop import** onto the editor canvas
 - 🌗 **Light/dark/auto themes** — optional auto mode follows the OS preference live
@@ -92,7 +93,7 @@ docker cp ./backup/excalistack.db excalistack:/app/data/
 | Method   | Path                        | Description                                  |
 | -------- | --------------------------- | -------------------------------------------- |
 | `GET`    | `/api/health`               | Liveness probe                               |
-| `GET`    | `/api/drawings`             | List drawings; `?folderId=` scopes to folder |
+| `GET`    | `/api/drawings`             | List drawings; `?folderId=` scopes to folder, `?q=` searches names + scene text globally |
 | `POST`   | `/api/drawings`             | Create; body = API form or raw `.excalidraw` |
 | `GET`    | `/api/drawings/:id`         | Full drawing incl. scene and files           |
 | `PUT`    | `/api/drawings/:id`         | Replace scene/files/thumbnail (autosave)     |
