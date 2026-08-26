@@ -104,5 +104,13 @@ function migrate(db: Database.Database): Database.Database {
      WHERE folder_id IS NULL`,
   ).run(DEFAULT_FOLDER_NAME);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS mcp_checkpoints (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
   return db;
 }

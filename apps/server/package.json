@@ -7,13 +7,16 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/mcp/vendor && cp src/mcp/vendor/mcp-app.html dist/mcp/vendor/mcp-app.html 2>/dev/null || true",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@excalistack/shared": "workspace:*",
     "@fastify/static": "^8.2.0",
+    "@modelcontextprotocol/ext-apps": "0.4.2",
+    "@modelcontextprotocol/sdk": "1.25.2",
+    "@upstash/redis": "^1.38.3",
     "better-sqlite3": "^12.4.1",
     "fastify": "^5.6.2",
     "nanoid": "^5.1.6",

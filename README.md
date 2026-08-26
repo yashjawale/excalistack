@@ -15,9 +15,9 @@ you a dashboard of all of them, and round-trips native `.excalidraw` files.
 - 🖱️ **Drag-and-drop import** onto the editor canvas
 - 🌗 **Light/dark/auto themes** — optional auto mode follows the OS preference live
 - 🪶 **Single lightweight image** — one container, one port, no external database
+- 🤖 **MCP server** (opt-in) — official excalidraw MCP Apps (interactive preview in chat) plus library CRUD, at `/mcp`
 - 🔌 **REST API** for scripted access (`/api/drawings`)
 - 🛜 **Fully self-contained** — UI and editor fonts are served locally, no CDN
-- 🧩 **MCP-server-ready** — storage sits behind a clean `DrawingStore` interface
 
 ## Quick start
 
@@ -61,6 +61,7 @@ Environment variables (all optional):
 | `HOST`         | `0.0.0.0`         | HTTP bind address                    |
 | `DATA_DIR`     | `/app/data`       | Directory holding the SQLite file    |
 | `WEB_DIST_DIR` | `../web/dist`     | Built SPA directory served at `/`    |
+| `MCP_ENABLED`  | `false`           | When `true`, mounts the MCP endpoint at `/mcp` |
 
 ## Backup & restore
 
@@ -105,12 +106,63 @@ docker cp ./backup/excalistack.db excalistack:/app/data/
 | `PATCH`  | `/api/folders/:id`          | Rename folder                                |
 | `DELETE` | `/api/folders/:id`          | Delete folder (contents move to Drafts)      |
 
+## MCP server
+
+Opt-in via `MCP_ENABLED=true`. The image embeds the official
+[`@mcp-demos/excalidraw-server`](https://github.com/excalidraw/excalidraw-mcp)
+(MIT) for interactive **MCP Apps** previews, plus excalistack's library tools
+— all on one endpoint, sharing the same SQLite database.
+
+```shell
+MCP_ENABLED=true docker compose up -d
+# or
+docker run -e MCP_ENABLED=true -p 3000:3000 -v excalistack_data:/app/data excalistack:latest
+```
+
+- Endpoint: `http://localhost:3000/mcp` — Streamable HTTP (stateless), no auth.
+- Checkpoints (ephemeral working state) are stored in SQLite and survive restarts, unlike the upstream memory/tmp stores.
+
+### Tools
+
+| Tool | Kind | Notes |
+|---|---|---|
+| `read_me` | official | Element format cheat sheet — call once before `create_view` |
+| `create_view` | official (App) | Streams an Excalidraw diagram into the chat (animated, camera-panned, fullscreen-editable); returns `checkpointId` |
+| `export_to_excalidraw` | official (app-only) | Uploads current scene to `excalidraw.com` for a shareable link |
+| `list_drawings` | excalistack | Summaries, optional `folderId` + `limit` |
+| `search_drawings` | excalistack | Global name + scene-content search |
+| `get_drawing` | excalistack | Full `.excalidraw` document JSON |
+| `save_drawing` | excalistack | Create/update — `elements` is a JSON array string; to persist a `create_view`, `read_checkpoint` first if the user edited in fullscreen |
+| `delete_drawing` | excalistack | Permanent delete |
+| `list_folders` | excalistack | With drawing counts |
+
+`save_to_excalistack` is also registered as an app-only widget tool mirroring `export_to_excalidraw` but writing into the library.
+
+**Stored drawings preview in chat:** `get_drawing` → `create_view(elements)`. Example prompt: *"find my postgres failover diagram, show it, then save a copy to the Architecture folder"*.
+
+### Client configuration
+
+```jsonc
+// Claude Code (streamable HTTP, recommended)
+claude mcp add --transport http excalistack http://localhost:3000/mcp
+
+// Claude Desktop — Settings → Connectors → Add custom connector
+// Type: Remote • URL: http://localhost:3000/mcp
+
+// Cursor — .cursor/mcp.json
+{ "mcpServers": { "excalistack": { "url": "http://localhost:3000/mcp" } } }
+```
+
+Requires `MCP_ENABLED=true` on the server; use a reverse proxy or tailnet when exposing beyond localhost.
+
 ## Architecture
 
 ```
-apps/web      Vite + React SPA — dashboard + embedded @excalidraw/excalidraw editor
-apps/server   Fastify REST API, SQLite (better-sqlite3), static SPA hosting
+apps/web         Vite + React SPA — dashboard + embedded @excalidraw/excalidraw editor
+apps/server      Fastify REST API, SQLite (better-sqlite3), static SPA hosting
+                 └─ mcp/  official excalidraw MCP Apps + excalistack library tools (opt-in at /mcp)
 packages/shared  zod schemas + domain types shared by both apps
+vendor/excalidraw-mcp  widget build artifact (mcp-app.html) vendored from the official repo (MIT)
 ```
 
 The server routes are thin wrappers over the `DrawingStore` interface

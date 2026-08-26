@@ -60,7 +60,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   app.setNotFoundHandler((request, reply) => {
     // History-API fallback: serve the SPA shell for non-API GET navigations.
-    if (webDistDir && request.method === "GET" && !request.url.startsWith("/api")) {
+    if (
+      webDistDir &&
+      request.method === "GET" &&
+      !request.url.startsWith("/api") &&
+      !request.url.startsWith("/mcp")
+    ) {
       return reply.sendFile("index.html");
     }
     return reply.code(404).send({ message: "Not found" });

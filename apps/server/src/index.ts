@@ -2,6 +2,7 @@ import { loadConfig } from "./env.js";
 import { openDatabase } from "./db.js";
 import { SqliteDrawingStore } from "./store.js";
 import { buildApp } from "./app.js";
+import { mountMcp } from "./mcp/index.js";
 
 /**
  * Process entry point: resolves configuration, opens storage, builds the
@@ -17,6 +18,11 @@ async function main(): Promise<void> {
     webDistDir: config.webDistDir,
     logger: true,
   });
+
+  if (config.mcpEnabled) {
+    await mountMcp(app, { drawingStore: store, db });
+    app.log.info(`MCP endpoint mounted at http://${config.host}:${config.port}/mcp`);
+  }
 
   let shuttingDown = false;
   const shutdown = async (): Promise<void> => {

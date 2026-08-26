@@ -16,6 +16,8 @@ export interface AppConfig {
    * (directory absent) only the JSON API is served.
    */
   webDistDir: string | null;
+  /** Whether the MCP endpoint at `/mcp` is mounted. */
+  mcpEnabled: boolean;
 }
 
 /** Default TCP port used when `PORT` is unset or invalid. */
@@ -30,6 +32,8 @@ export const DEFAULT_PORT = 3000;
  * - `DATA_DIR` — database directory (default `./data`)
  * - `WEB_DIST_DIR` — built SPA directory (default `../../web/dist` relative
  *   to this package)
+ * - `MCP_ENABLED` — when `true`, mounts the MCP endpoint at `/mcp`
+ *   (default `false`, opt-in)
  *
  * @param env - Environment variable source; defaults to `process.env`.
  * @returns The resolved application configuration.
@@ -45,5 +49,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     port: Number.isFinite(port) && port > 0 ? port : DEFAULT_PORT,
     dataDir,
     webDistDir: existsSync(webDistDir) ? webDistDir : null,
+    mcpEnabled: env["MCP_ENABLED"] === "true",
   };
 }
