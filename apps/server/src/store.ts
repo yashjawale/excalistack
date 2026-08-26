@@ -32,16 +32,18 @@ export interface DrawingStore {
   listFolders(): FolderSummary[];
 
   /**
-   * Creates a folder. Callers are responsible for rejecting duplicate
-   * names before calling this.
+   * Creates a folder, optionally nested under a parent. Callers are
+   * responsible for rejecting duplicate sibling names and unknown
+   * parents before calling this.
    *
    * @param name - Folder display name.
+   * @param parentId - Parent folder identifier; omitted = root level.
    * @returns The freshly created folder.
    */
-  createFolder(name: string): FolderSummary;
+  createFolder(name: string, parentId?: string): FolderSummary;
 
   /**
-   * Renames a folder without touching its contents.
+   * Renames a folder without touching its contents or position.
    *
    * @param id - Folder identifier.
    * @param name - New display name.
@@ -50,8 +52,19 @@ export interface DrawingStore {
   renameFolder(id: string, name: string): FolderSummary | null;
 
   /**
-   * Deletes a folder and moves its drawings to the Drafts folder.
-   * Deleting the Drafts folder itself is rejected with an error.
+   * Re-parents a folder. Cycle and existence validation is the caller's
+   * responsibility; the store only refuses to move the Drafts folder.
+   *
+   * @param id - Folder identifier.
+   * @param parentId - New parent folder identifier, or `null` for root.
+   * @returns The updated folder, or `null` when no such folder exists.
+   */
+  moveFolder(id: string, parentId: string | null): FolderSummary | null;
+
+  /**
+   * Deletes a folder, its entire subfolder tree, and moves all drawings
+   * from the deleted folders to the Drafts folder. Deleting the Drafts
+   * folder itself is rejected with an error.
    *
    * @param id - Folder identifier.
    * @returns `true` when a folder was deleted, `false` when unknown.
@@ -141,6 +154,7 @@ interface FolderRow {
   id: string;
   name: string;
   created_at: number;
+  parent_id: string | null;
   drawing_count?: number;
 }
 
@@ -163,7 +177,8 @@ export class SqliteDrawingStore implements DrawingStore {
   readonly #selectFolderById: BetterSqlite3.Statement;
   readonly #insertFolder: BetterSqlite3.Statement;
   readonly #renameFolderStmt: BetterSqlite3.Statement;
-  readonly #reassignDrawings: BetterSqlite3.Statement;
+  readonly #moveFolderStmt: BetterSqlite3.Statement;
+  readonly #selectDescendants: BetterSqlite3.Statement;
   readonly #deleteFolderStmt: BetterSqlite3.Statement;
 
   /**
@@ -211,7 +226,7 @@ export class SqliteDrawingStore implements DrawingStore {
     );
     this.#deleteDrawing = db.prepare("DELETE FROM drawings WHERE id = ?");
     this.#selectFolders = db.prepare(
-      `SELECT f.id, f.name, f.created_at, COUNT(d.id) AS drawing_count
+      `SELECT f.id, f.name, f.created_at, f.parent_id, COUNT(d.id) AS drawing_count
        FROM folders f
        LEFT JOIN drawings d ON d.folder_id = f.id
        GROUP BY f.id
@@ -219,13 +234,21 @@ export class SqliteDrawingStore implements DrawingStore {
     );
     this.#selectFolderById = db.prepare("SELECT * FROM folders WHERE id = ?");
     this.#insertFolder = db.prepare(
-      "INSERT INTO folders (id, name, created_at) VALUES (?, ?, ?)",
+      "INSERT INTO folders (id, name, created_at, parent_id) VALUES (?, ?, ?, ?)",
     );
     this.#renameFolderStmt = db.prepare(
       "UPDATE folders SET name = ? WHERE id = ?",
     );
-    this.#reassignDrawings = db.prepare(
-      "UPDATE drawings SET folder_id = ? WHERE folder_id = ?",
+    this.#moveFolderStmt = db.prepare(
+      "UPDATE folders SET parent_id = ? WHERE id = ?",
+    );
+    this.#selectDescendants = db.prepare(
+      `WITH RECURSIVE sub(id) AS (
+         SELECT id FROM folders WHERE id = ?
+         UNION ALL
+         SELECT f.id FROM folders f JOIN sub s ON f.parent_id = s.id
+       )
+       SELECT id FROM sub`,
     );
     this.#deleteFolderStmt = db.prepare("DELETE FROM folders WHERE id = ?");
   }
@@ -237,25 +260,24 @@ export class SqliteDrawingStore implements DrawingStore {
 
   /** @inheritDoc */
   listFolders(): FolderSummary[] {
-    return (this.#selectFolders.all() as FolderRow[]).map((row) => ({
-      id: row.id,
-      name: row.name,
-      drawingCount: row.drawing_count ?? 0,
-      createdAt: row.created_at,
-    }));
+    return (this.#selectFolders.all() as FolderRow[]).map((row) =>
+      this.#toFolderSummary(row),
+    );
   }
 
   /** @inheritDoc */
-  createFolder(name: string): FolderSummary {
+  createFolder(name: string, parentId?: string): FolderSummary {
     const folder: FolderRow = {
       id: nanoid(),
       name,
       created_at: Date.now(),
+      parent_id: parentId ?? null,
     };
-    this.#insertFolder.run(folder.id, folder.name, folder.created_at);
+    this.#insertFolder.run(folder.id, folder.name, folder.created_at, folder.parent_id);
     return {
       id: folder.id,
       name: folder.name,
+      parentId: folder.parent_id,
       drawingCount: 0,
       createdAt: folder.created_at,
     };
@@ -271,15 +293,36 @@ export class SqliteDrawingStore implements DrawingStore {
   }
 
   /** @inheritDoc */
+  moveFolder(id: string, parentId: string | null): FolderSummary | null {
+    if (id === this.#draftsId) {
+      throw new Error("The Drafts folder cannot be moved");
+    }
+    const result = this.#moveFolderStmt.run(parentId, id);
+    if (result.changes === 0) {
+      return null;
+    }
+    return this.#toFolderSummary(this.#selectFolderById.get(id) as FolderRow);
+  }
+
+  /** @inheritDoc */
   deleteFolder(id: string): boolean {
     if (id === this.#draftsId) {
       throw new Error("The Drafts folder cannot be deleted");
     }
-    const result = this.#deleteFolderStmt.run(id);
-    if (result.changes === 0) {
+    const rows = this.#selectDescendants.all(id) as { id: string }[];
+    if (rows.length === 0) {
       return false;
     }
-    this.#reassignDrawings.run(this.#draftsId, id);
+    const ids = rows.map((row) => row.id);
+    const placeholders = ids.map(() => "?").join(",");
+    this.#db
+      .prepare(
+        `UPDATE drawings SET folder_id = ? WHERE folder_id IN (${placeholders})`,
+      )
+      .run(this.#draftsId, ...ids);
+    this.#db
+      .prepare(`DELETE FROM folders WHERE id IN (${placeholders})`)
+      .run(...ids);
     return true;
   }
 
@@ -384,6 +427,7 @@ export class SqliteDrawingStore implements DrawingStore {
     return {
       id: row.id,
       name: row.name,
+      parentId: row.parent_id,
       drawingCount: row.drawing_count ?? 0,
       createdAt: row.created_at,
     };

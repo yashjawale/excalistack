@@ -77,6 +77,15 @@ function migrate(db: Database.Database): Database.Database {
     );
   `);
 
+  const hasParentColumn = db
+    .prepare("PRAGMA table_info(folders)")
+    .all()
+    .some((column) => (column as { name: string }).name === "parent_id");
+
+  if (!hasParentColumn) {
+    db.exec("ALTER TABLE folders ADD COLUMN parent_id TEXT");
+  }
+
   const draftsExists =
     db
       .prepare("SELECT 1 FROM folders WHERE name = ?")

@@ -44,6 +44,48 @@ describe("SqliteDrawingStore", () => {
     expect(store.get(drawing.id)?.folderId).toBe(store.draftsFolderId());
   });
 
+  it("creates nested folders with parentId and reports it in listings", () => {
+    const store = makeStore();
+    const root = store.createFolder("Root");
+    const child = store.createFolder("Child", root.id);
+
+    expect(child.parentId).toBe(root.id);
+    const listed = store.listFolders().find((f) => f.id === child.id);
+    expect(listed?.parentId).toBe(root.id);
+    expect(store.listFolders().find((f) => f.id === root.id)?.parentId).toBeNull();
+  });
+
+  it("moves folders between parents and refuses to move Drafts", () => {
+    const store = makeStore();
+    const draftsId = store.draftsFolderId();
+    const parentA = store.createFolder("A");
+    const parentB = store.createFolder("B");
+    const child = store.createFolder("Child", parentA.id);
+
+    const moved = store.moveFolder(child.id, parentB.id);
+    expect(moved?.parentId).toBe(parentB.id);
+
+    const toRoot = store.moveFolder(child.id, null);
+    expect(toRoot?.parentId).toBeNull();
+
+    expect(() => store.moveFolder(draftsId, parentA.id)).toThrow();
+  });
+
+  it("deletes a folder subtree recursively, reassigning all drawings", () => {
+    const store = makeStore();
+    const root = store.createFolder("Root");
+    const child = store.createFolder("Child", root.id);
+    const grandchild = store.createFolder("Grandchild", child.id);
+
+    const drawingInChild = store.create({ folderId: child.id, name: "InChild" });
+    const drawingInGrandchild = store.create({ folderId: grandchild.id, name: "InGrandchild" });
+
+    expect(store.deleteFolder(root.id)).toBe(true);
+    expect(store.listFolders().map((f) => f.name)).toEqual(["Drafts"]);
+    expect(store.get(drawingInChild.id)?.folderId).toBe(store.draftsFolderId());
+    expect(store.get(drawingInGrandchild.id)?.folderId).toBe(store.draftsFolderId());
+  });
+
   it("refuses to delete the Drafts folder and reports unknown folders", () => {
     const store = makeStore();
 

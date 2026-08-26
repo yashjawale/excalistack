@@ -112,7 +112,9 @@ export interface FolderSummary {
   id: string;
   /** Folder display name. */
   name: string;
-  /** Number of drawings currently in the folder. */
+  /** Identifier of the parent folder, or `null` for root-level folders. */
+  parentId: string | null;
+  /** Number of drawings directly inside this folder. */
   drawingCount: number;
   /** Epoch milliseconds of creation. */
   createdAt: number;
@@ -122,12 +124,19 @@ export interface FolderSummary {
 export interface CreateFolderInput {
   /** Folder display name. */
   name: string;
+  /** Parent folder; omitted or `null` creates a root-level folder. */
+  parentId?: string | null;
 }
 
-/** Body for `PATCH /api/folders/:id`. */
+/**
+ * Body for `PATCH /api/folders/:id` (rename and/or re-parent).
+ * `parentId: null` moves the folder to the root level.
+ */
 export interface RenameFolderInput {
   /** New folder display name. */
-  name: string;
+  name?: string;
+  /** New parent folder, or `null` for root. */
+  parentId?: string | null;
 }
 
 /** Metadata about a stored drawing (no scene payload). */
@@ -217,12 +226,18 @@ export const RenameDrawingInputSchema = z
 /** Validates {@link CreateFolderInput}. */
 export const CreateFolderInputSchema = z.object({
   name: z.string().trim().min(1).max(100),
+  parentId: z.string().min(1).nullable().optional(),
 }) satisfies z.ZodType<CreateFolderInput>;
 
-/** Validates {@link RenameFolderInput}. */
-export const RenameFolderInputSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-}) satisfies z.ZodType<RenameFolderInput>;
+/** Validates {@link RenameFolderInput} (rename and/or re-parent). */
+export const RenameFolderInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    parentId: z.string().min(1).nullable().optional(),
+  })
+  .refine((input) => input.name !== undefined || input.parentId !== undefined, {
+    message: "Provide a name and/or parentId",
+  }) satisfies z.ZodType<RenameFolderInput>;
 
 /**
  * Counts elements that are not marked deleted, which is what should be

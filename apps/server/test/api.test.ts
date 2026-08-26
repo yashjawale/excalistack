@@ -175,6 +175,120 @@ describe("Folders API", () => {
     expect(dup.statusCode).toBe(409);
   });
 
+  it("allows same names under different parents but rejects sibling duplicates", async () => {
+    const app = await makeApp();
+    const parentA = (
+      await app.inject({ method: "POST", url: "/api/folders", payload: { name: "A" } })
+    ).json();
+
+    const underA = await app.inject({
+      method: "POST",
+      url: "/api/folders",
+      payload: { name: "Work", parentId: parentA.id },
+    });
+    expect(underA.statusCode).toBe(201);
+
+    const rootDup = await app.inject({
+      method: "POST",
+      url: "/api/folders",
+      payload: { name: "work" },
+    });
+    // Root already has "Drafts" and "A" — "work" is free at root.
+    expect(rootDup.statusCode).toBe(201);
+
+    const siblingDup = await app.inject({
+      method: "POST",
+      url: "/api/folders",
+      payload: { name: "WORK", parentId: parentA.id },
+    });
+    expect(siblingDup.statusCode).toBe(409);
+  });
+
+  it("creates nested folders and re-parents them via PATCH with cycle protection", async () => {
+    const app = await makeApp();
+    const parent = (
+      await app.inject({ method: "POST", url: "/api/folders", payload: { name: "Parent" } })
+    ).json();
+    const child = (
+      await app.inject({
+        method: "POST",
+        url: "/api/folders",
+        payload: { name: "Child", parentId: parent.id },
+      })
+    ).json();
+    expect(child.parentId).toBe(parent.id);
+
+    // Move child to root.
+    const toRoot = await app.inject({
+      method: "PATCH",
+      url: `/api/folders/${child.id}`,
+      payload: { parentId: null },
+    });
+    expect(toRoot.json().parentId).toBeNull();
+
+    // Move parent under child, then child under parent → cycle.
+    await app.inject({
+      method: "PATCH",
+      url: `/api/folders/${parent.id}`,
+      payload: { parentId: child.id },
+    });
+    const cycle = await app.inject({
+      method: "PATCH",
+      url: `/api/folders/${child.id}`,
+      payload: { parentId: parent.id },
+    });
+    expect(cycle.statusCode).toBe(409);
+
+    // Moving Drafts is forbidden.
+    const folders = (await app.inject({ method: "GET", url: "/api/folders" })).json().folders;
+    const drafts = folders.find((f: { name: string }) => f.name === "Drafts");
+    const moveDrafts = await app.inject({
+      method: "PATCH",
+      url: `/api/folders/${drafts.id}`,
+      payload: { parentId: child.id },
+    });
+    expect(moveDrafts.statusCode).toBe(409);
+
+    // Unknown parent → 400.
+    const badParent = await app.inject({
+      method: "POST",
+      url: "/api/folders",
+      payload: { name: "Orphan", parentId: "nope" },
+    });
+    expect(badParent.statusCode).toBe(400);
+  });
+
+  it("deletes nested folders recursively, moving all drawings to Drafts", async () => {
+    const app = await makeApp();
+    const root = (
+      await app.inject({ method: "POST", url: "/api/folders", payload: { name: "Root" } })
+    ).json();
+    const child = (
+      await app.inject({
+        method: "POST",
+        url: "/api/folders",
+        payload: { name: "Child", parentId: root.id },
+      })
+    ).json();
+    const drawing = (
+      await app.inject({
+        method: "POST",
+        url: "/api/drawings",
+        payload: { name: "Deep", folderId: child.id },
+      })
+    ).json();
+
+    const res = await app.inject({ method: "DELETE", url: `/api/folders/${root.id}` });
+    expect(res.statusCode).toBe(204);
+
+    const folders = (await app.inject({ method: "GET", url: "/api/folders" })).json().folders;
+    expect(folders.map((f: { name: string }) => f.name)).toEqual(["Drafts"]);
+
+    const fetched = await app.inject({ method: "GET", url: `/api/drawings/${drawing.id}` });
+    const drafts = folders.find((f: { name: string }) => f.name === "Drafts");
+    expect(fetched.json().folderId).toBe(drafts.id);
+  });
+
   it("protects the Drafts folder from deletion with 409", async () => {
     const app = await makeApp();
     const folders = (await app.inject({ method: "GET", url: "/api/folders" })).json().folders;
