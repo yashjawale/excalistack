@@ -24,10 +24,16 @@ export async function registerDrawingRoutes(app: FastifyInstance, store: Drawing
    * Lists stored drawings, most recently updated first.
    *
    * Supports an optional `folderId` query parameter to scope the listing
-   * to a single folder.
+   * to a single folder, and an optional `q` parameter for a global
+   * case-insensitive search over drawing names and scene text content
+   * (`q` takes precedence over `folderId`).
    */
   app.get("/api/drawings", async (request) => {
-    const { folderId } = request.query as { folderId?: string };
+    const { folderId, q } = request.query as { folderId?: string; q?: string };
+    const term = q?.trim();
+    if (term) {
+      return { drawings: store.list(undefined, term), query: term };
+    }
     return { drawings: store.list(folderId || undefined) };
   });
 

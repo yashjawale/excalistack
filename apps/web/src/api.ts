@@ -93,14 +93,22 @@ export async function deleteFolder(id: string): Promise<void> {
 }
 
 /**
- * Lists drawings, optionally scoped to a folder, most recently updated
- * first.
+ * Lists drawings, optionally scoped to a folder or matched against a
+ * global search query, most recently updated first.
  *
  * @param folderId - Folder to scope the listing to.
+ * @param q - Search term matched against names and scene content;
+ * takes precedence over `folderId`.
  */
-export function listDrawings(folderId?: string): Promise<{ drawings: DrawingSummary[] }> {
-  const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : "";
-  return request(`/api/drawings${query}`);
+export function listDrawings(
+  folderId?: string,
+  q?: string,
+): Promise<{ drawings: DrawingSummary[]; query?: string }> {
+  const params = new URLSearchParams();
+  if (folderId) params.set("folderId", folderId);
+  if (q?.trim()) params.set("q", q.trim());
+  const query = params.toString();
+  return request(`/api/drawings${query ? `?${query}` : ""}`);
 }
 
 /**

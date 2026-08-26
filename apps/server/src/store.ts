@@ -13,6 +13,18 @@ import type BetterSqlite3 from "better-sqlite3";
 import { DEFAULT_FOLDER_NAME } from "./db.js";
 
 /**
+ * Builds a substring LIKE pattern from a raw search term, escaping the
+ * LIKE wildcards (`%`, `_`) and the escape character itself.
+ *
+ * @param term - Raw user-supplied search term.
+ * @returns Pattern for `LIKE ... ESCAPE '\'`, e.g. `%100\%_ready%`.
+ */
+function buildLikePattern(term: string): string {
+  const escaped = term.replace(/[\\%_]/g, (character) => `\\${character}`);
+  return `%${escaped}%`;
+}
+
+/**
  * Persistence interface for drawings and folders. Routes depend on this
  * abstraction rather than SQLite directly, keeping the door open for
  * alternative backends and API surfaces (e.g. a future MCP server).
@@ -76,9 +88,12 @@ export interface DrawingStore {
    * Lists drawings, most recently updated first.
    *
    * @param folderId - When given, only drawings inside that folder.
+   * @param q - When given, a case-insensitive substring query matched
+   * against drawing names and scene text content (takes precedence over
+   * `folderId`, enabling global search).
    * @returns Drawing metadata without scene payloads.
    */
-  list(folderId?: string): DrawingSummary[];
+  list(folderId?: string, q?: string): DrawingSummary[];
 
   /**
    * Fetches one drawing including its full scene and files.
@@ -168,6 +183,7 @@ export class SqliteDrawingStore implements DrawingStore {
   readonly #insertDrawing: BetterSqlite3.Statement;
   readonly #selectAll: BetterSqlite3.Statement;
   readonly #selectByFolder: BetterSqlite3.Statement;
+  readonly #selectByQuery: BetterSqlite3.Statement;
   readonly #selectDrawingById: BetterSqlite3.Statement;
   readonly #updateContent: BetterSqlite3.Statement;
   readonly #renameDrawing: BetterSqlite3.Statement;
@@ -205,6 +221,11 @@ export class SqliteDrawingStore implements DrawingStore {
     );
     this.#selectByFolder = db.prepare(
       "SELECT * FROM drawings WHERE folder_id = ? ORDER BY updated_at DESC",
+    );
+    this.#selectByQuery = db.prepare(
+      `SELECT * FROM drawings
+       WHERE name LIKE ? ESCAPE '\\' OR elements LIKE ? ESCAPE '\\'
+       ORDER BY updated_at DESC`,
     );
     this.#selectDrawingById = db.prepare("SELECT * FROM drawings WHERE id = ?");
     this.#updateContent = db.prepare(
@@ -327,7 +348,14 @@ export class SqliteDrawingStore implements DrawingStore {
   }
 
   /** @inheritDoc */
-  list(folderId?: string): DrawingSummary[] {
+  list(folderId?: string, q?: string): DrawingSummary[] {
+    const term = q?.trim();
+    if (term) {
+      const rows = (
+        this.#selectByQuery.all(buildLikePattern(term), buildLikePattern(term)) as DrawingRow[]
+      ).map((row) => this.#toSummary(row));
+      return rows;
+    }
     const rows = (
       folderId
         ? (this.#selectByFolder.all(folderId) as DrawingRow[])

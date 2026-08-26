@@ -121,6 +121,34 @@ describe("SqliteDrawingStore", () => {
     expect(store.list(target.id).map((d) => d.id)).toEqual([drawing.id]);
   });
 
+  it("searches across folders by name and scene content with escaped wildcards", () => {
+    const store = makeStore();
+    const folder = store.createFolder("Somewhere");
+    store.create({
+      folderId: folder.id,
+      name: "Deploy pipeline",
+      scene: {
+        elements: [{ id: "t1", type: "text", text: "postgres replication notes" }],
+        appState: {},
+      },
+    });
+    store.create({ name: "Groceries" });
+
+    // Name match, global across folders.
+    expect(store.list(undefined, "deploy").map((d) => d.name)).toEqual(["Deploy pipeline"]);
+    // Content match inside scene elements.
+    expect(store.list(undefined, "replication").map((d) => d.name)).toEqual(["Deploy pipeline"]);
+    // Case-insensitive.
+    expect(store.list(undefined, "POSTGRES")).toHaveLength(1);
+    // No match.
+    expect(store.list(undefined, "zzz")).toEqual([]);
+    // LIKE wildcards are treated literally.
+    store.create({ name: "100%_ready" });
+    expect(store.list(undefined, "100%")).toHaveLength(1);
+    expect(store.list(undefined, "0%_r")).toHaveLength(1);
+    expect(store.list(undefined, "%_")).toHaveLength(1);
+  });
+
   it("creates an empty drawing with server-side defaults", () => {
     const store = makeStore();
     const drawing = store.create({});

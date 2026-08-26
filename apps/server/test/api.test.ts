@@ -338,6 +338,38 @@ describe("Folders API", () => {
     expect(badFolder.statusCode).toBe(400);
   });
 
+  it("searches globally by name and content via ?q=, overriding folderId", async () => {
+    const app = await makeApp();
+    const folder = (
+      await app.inject({ method: "POST", url: "/api/folders", payload: { name: "Elsewhere" } })
+    ).json();
+    await app.inject({
+      method: "POST",
+      url: "/api/drawings",
+      payload: { name: "Kafka topology", folderId: folder.id },
+    });
+    await app.inject({
+      method: "POST",
+      url: "/api/drawings",
+      payload: {
+        name: "Random notes",
+        scene: { elements: [{ id: "t1", type: "text", text: "kafka" }], appState: {} },
+      },
+    });
+    await app.inject({ method: "POST", url: "/api/drawings", payload: { name: "Unrelated" } });
+
+    const search = await app.inject({
+      method: "GET",
+      url: `/api/drawings?q=kafka&folderId=${folder.id}`,
+    });
+    const names = search.json().drawings.map((d: { name: string }) => d.name).sort();
+    expect(names).toEqual(["Kafka topology", "Random notes"]);
+    expect(search.json().query).toBe("kafka");
+
+    const none = await app.inject({ method: "GET", url: "/api/drawings?q=zzz" });
+    expect(none.json().drawings).toEqual([]);
+  });
+
   it("creates drawings into a given folder and rejects unknown folders", async () => {
     const app = await makeApp();
     const folder = (

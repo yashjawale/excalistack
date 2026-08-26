@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -65,6 +65,28 @@ function ImportIcon(): ReactElement {
 }
 
 /**
+ * Magnifier icon for the search input.
+ */
+function SearchIcon(): ReactElement {
+  return (
+    <svg
+      className="search-icon"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+/**
  * Dashboard listing the drawings of the selected folder, framed by a
  * sidebar holding the brand, the nested folder tree, and the theme
  * switcher. The selected folder persists across reloads; drawings can
@@ -85,12 +107,55 @@ export function Dashboard(): ReactElement {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [creatingIn, setCreatingIn] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchResults, setSearchResults] = useState<DrawingSummary[] | null>(null);
+  const [searching, setSearching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
   const fileDragDepth = useRef(0);
   const [fileDragActive, setFileDragActive] = useState(false);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
+
+  /** Whether a search query is active (grid shows global results). */
+  const isSearching = searchInput.trim().length > 0;
+  const visibleDrawings = isSearching ? (searchResults ?? []) : drawings;
+  const folderNameById = useMemo(
+    () => new Map(folders.map((folder) => [folder.id, folder.name])),
+    [folders],
+  );
+
+  // Debounced global search: fetches results while a query is active and
+  // clears them as soon as the input empties. Stale responses are
+  // discarded via the cancelled flag.
+  useEffect(() => {
+    const term = searchInput.trim();
+    if (!term) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      listDrawings(undefined, term)
+        .then((response) => {
+          if (!cancelled) setSearchResults(response.drawings);
+        })
+        .catch((cause: unknown) => {
+          if (!cancelled) {
+            setError(cause instanceof Error ? cause.message : String(cause));
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [searchInput]);
 
   /**
    * Fetches folders from the API and mirrors them into state.
@@ -492,6 +557,64 @@ export function Dashboard(): ReactElement {
     setBusy(false);
   };
 
+  /**
+   * Renders one drawing card. In search mode the meta line includes the
+   * owning folder name, since results span folders.
+   *
+   * @param drawing - Drawing to render.
+   * @param showFolder - Whether to prefix the meta line with the folder.
+   * @returns The card element.
+   */
+  const renderCard = (drawing: DrawingSummary, showFolder: boolean): ReactElement => (
+    <li
+      key={drawing.id}
+      className="card"
+      draggable={!busy}
+      onDragStart={(event) => handleCardDragStart(event, drawing)}
+    >
+      <CardMenu
+        downloadUrl={`/api/drawings/${encodeURIComponent(drawing.id)}/export`}
+        folders={folders}
+        currentFolderId={drawing.folderId}
+        onRename={() => handleRename(drawing)}
+        onDelete={() => void handleDelete(drawing)}
+        onMove={(folderId) => void handleMove(drawing, folderId)}
+      />
+      <a
+        className="card-thumb-link"
+        href={`/d/${drawing.id}`}
+        onClick={(event) => {
+          event.preventDefault();
+          navigate(`/d/${drawing.id}`);
+        }}
+      >
+        {drawing.thumbnail ? (
+          <img className="card-thumb" src={drawing.thumbnail} alt="" />
+        ) : (
+          <div className="card-thumb card-thumb-empty" aria-hidden="true">
+            empty
+          </div>
+        )}
+      </a>
+      <div className="card-body">
+        <InlineRename
+          value={drawing.name}
+          editing={renamingDrawingId === drawing.id}
+          onStart={() => handleRename(drawing)}
+          onCommit={(name) => void handleRenameCommit(drawing, name)}
+          onCancel={() => setRenamingDrawingId(null)}
+          className="card-name"
+          inputClassName="card-name-input"
+        />
+        <span className="card-meta">
+          {showFolder && `${folderNameById.get(drawing.folderId) ?? "—"} · `}
+          {drawing.elementCount} element{drawing.elementCount === 1 ? "" : "s"} ·{" "}
+          {formatTimestamp(drawing.updatedAt)}
+        </span>
+      </div>
+    </li>
+  );
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -555,10 +678,45 @@ export function Dashboard(): ReactElement {
 
         <div className="content-header">
           <h2 className="content-heading">
-            {loading ? "…" : (activeFolder?.name ?? "…")}{" "}
-            <span className="muted">({drawings.length})</span>
+            {isSearching ? (
+              <>
+                Search results <span className="muted">({visibleDrawings.length})</span>
+              </>
+            ) : (
+              <>
+                {loading ? "…" : (activeFolder?.name ?? "…")}{" "}
+                <span className="muted">({drawings.length})</span>
+              </>
+            )}
           </h2>
           <div className="content-header-actions">
+            <div className="search-wrap">
+              <SearchIcon />
+              <input
+                className="search-input"
+                value={searchInput}
+                placeholder="Search drawings…"
+                aria-label="Search drawings"
+                onChange={(event) => setSearchInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setSearchInput("");
+                  }
+                }}
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  aria-label="Clear search"
+                  onClick={() => setSearchInput("")}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                  </svg>
+                </button>
+              )}
+            </div>
             <button
               className="btn"
               disabled={busy || !activeFolderId}
@@ -578,7 +736,22 @@ export function Dashboard(): ReactElement {
           </div>
         </div>
 
-        {loading || loadingDrawings ? (
+        {isSearching ? (
+          searching ? (
+            <p className="muted">Searching…</p>
+          ) : visibleDrawings.length === 0 ? (
+            <div className="empty-state">
+              <p>
+                No drawings match "<code>{searchInput.trim()}</code>".
+              </p>
+              <p className="muted">Search covers drawing names and the text inside them.</p>
+            </div>
+          ) : (
+            <ul className="grid">
+              {visibleDrawings.map((drawing) => renderCard(drawing, true))}
+            </ul>
+          )
+        ) : loading || loadingDrawings ? (
           <p className="muted">Loading…</p>
         ) : !activeFolderId ? (
           <p className="muted">No folder selected.</p>
@@ -592,54 +765,7 @@ export function Dashboard(): ReactElement {
           </div>
         ) : (
           <ul className="grid">
-            {drawings.map((drawing) => (
-              <li
-                key={drawing.id}
-                className="card"
-                draggable={!busy}
-                onDragStart={(event) => handleCardDragStart(event, drawing)}
-              >
-                <CardMenu
-                  downloadUrl={`/api/drawings/${encodeURIComponent(drawing.id)}/export`}
-                  folders={folders}
-                  currentFolderId={drawing.folderId}
-                  onRename={() => handleRename(drawing)}
-                  onDelete={() => void handleDelete(drawing)}
-                  onMove={(folderId) => void handleMove(drawing, folderId)}
-                />
-                <a
-                  className="card-thumb-link"
-                  href={`/d/${drawing.id}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    navigate(`/d/${drawing.id}`);
-                  }}
-                >
-                  {drawing.thumbnail ? (
-                    <img className="card-thumb" src={drawing.thumbnail} alt="" />
-                  ) : (
-                    <div className="card-thumb card-thumb-empty" aria-hidden="true">
-                      empty
-                    </div>
-                  )}
-                </a>
-                <div className="card-body">
-                  <InlineRename
-                    value={drawing.name}
-                    editing={renamingDrawingId === drawing.id}
-                    onStart={() => handleRename(drawing)}
-                    onCommit={(name) => void handleRenameCommit(drawing, name)}
-                    onCancel={() => setRenamingDrawingId(null)}
-                    className="card-name"
-                    inputClassName="card-name-input"
-                  />
-                  <span className="card-meta">
-                    {drawing.elementCount} element{drawing.elementCount === 1 ? "" : "s"} ·{" "}
-                    {formatTimestamp(drawing.updatedAt)}
-                  </span>
-                </div>
-              </li>
-            ))}
+            {drawings.map((drawing) => renderCard(drawing, false))}
           </ul>
         )}
 
