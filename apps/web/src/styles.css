@@ -274,6 +274,37 @@ code {
   align-items: center;
 }
 
+.folder-row.drop-target .sidebar-btn,
+.folder-row.drop-target .folder-chevron {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.folder-chevron {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 120ms ease;
+}
+
+.folder-chevron.collapsed {
+  transform: rotate(90deg);
+}
+
+.folder-chevron-spacer {
+  width: 18px;
+  flex-shrink: 0;
+}
+
 .folder-row .sidebar-btn {
   flex: 1;
   min-width: 0;

@@ -45,12 +45,16 @@ export function listFolders(): Promise<{ folders: FolderSummary[] }> {
 }
 
 /**
- * Creates a folder.
+ * Creates a folder, optionally nested under a parent.
  *
  * @param name - Folder display name.
+ * @param parentId - Parent folder identifier; omitted = root level.
  */
-export function createFolder(name: string): Promise<FolderSummary> {
-  return request("/api/folders", { method: "POST", body: JSON.stringify({ name }) });
+export function createFolder(name: string, parentId?: string): Promise<FolderSummary> {
+  return request("/api/folders", {
+    method: "POST",
+    body: JSON.stringify({ name, parentId }),
+  });
 }
 
 /**
@@ -63,6 +67,19 @@ export function renameFolder(id: string, name: string): Promise<FolderSummary> {
   return request(`/api/folders/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify({ name }),
+  });
+}
+
+/**
+ * Re-parents a folder.
+ *
+ * @param id - Folder identifier.
+ * @param parentId - New parent folder identifier, or `null` for root.
+ */
+export function moveFolder(id: string, parentId: string | null): Promise<FolderSummary> {
+  return request(`/api/folders/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ parentId }),
   });
 }
 

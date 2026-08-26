@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChangeEvent, ReactElement } from "react";
+import type { ChangeEvent, DragEvent, ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   createDrawing,
@@ -9,12 +9,14 @@ import {
   importDrawingFile,
   listDrawings,
   listFolders,
+  moveFolder,
   renameOrMoveDrawing,
   renameFolder,
 } from "../api";
 import type { DrawingSummary, FolderSummary } from "@excalistack/shared";
+import { DRAWING_DRAG_MIME } from "../dragDrop";
 import { CardMenu } from "../components/CardMenu";
-import { FolderMenu } from "../components/FolderMenu";
+import { FolderTree } from "../components/FolderTree";
 import { InlineRename } from "../components/InlineRename";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
 
@@ -63,22 +65,11 @@ function ImportIcon(): ReactElement {
 }
 
 /**
- * Folder glyph shown next to sidebar folder entries.
- */
-function FolderIcon(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
-    </svg>
-  );
-}
-
-/**
  * Dashboard listing the drawings of the selected folder, framed by a
- * sidebar holding the brand, folder navigation, and the theme toggle.
- * The selected folder persists across reloads via localStorage; create
- * and import actions live in the content header and always target the
- * active folder.
+ * sidebar holding the brand, the nested folder tree, and the theme
+ * switcher. The selected folder persists across reloads; drawings can
+ * be dragged onto folder rows, `.excalidraw` files can be dropped onto
+ * the content area, and create/import actions target the active folder.
  */
 export function Dashboard(): ReactElement {
   const navigate = useNavigate();
@@ -92,6 +83,7 @@ export function Dashboard(): ReactElement {
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renamingDrawingId, setRenamingDrawingId] = useState<string | null>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [creatingIn, setCreatingIn] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +114,14 @@ export function Dashboard(): ReactElement {
       setLoadingDrawings(false);
     }
   }, []);
+
+  /**
+   * Reloads the drawings of the currently active folder (no-op when no
+   * folder is selected yet).
+   */
+  const refreshCurrent = useCallback((): Promise<void> => {
+    return activeFolderId ? refreshDrawings(activeFolderId) : Promise.resolve();
+  }, [activeFolderId, refreshDrawings]);
 
   // Initial load: folders first, then resolve the persisted selection
   // (falling back to Drafts), then the drawings of that folder.
@@ -171,14 +171,6 @@ export function Dashboard(): ReactElement {
   );
 
   /**
-   * Reloads the drawings of the currently active folder (no-op when no
-   * folder is selected yet).
-   */
-  const refreshCurrent = useCallback((): Promise<void> => {
-    return activeFolderId ? refreshDrawings(activeFolderId) : Promise.resolve();
-  }, [activeFolderId, refreshDrawings]);
-
-  /**
    * Creates an empty drawing in the active folder and opens it.
    */
   const handleNew = async (): Promise<void> => {
@@ -220,14 +212,30 @@ export function Dashboard(): ReactElement {
   };
 
   /**
-   * Deletes a folder after confirmation; its drawings move to Drafts.
+   * Re-parents a folder via its row menu's "Move to…" picker.
+   *
+   * @param folder - Folder to move.
+   * @param parentId - New parent (`null` = root).
+   */
+  const handleMoveFolder = async (folder: FolderSummary, parentId: string | null): Promise<void> => {
+    try {
+      await moveFolder(folder.id, parentId);
+      await refreshFolders();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
+  /**
+   * Deletes a folder after confirmation; its subtree and drawings move
+   * to Drafts.
    *
    * @param folder - Folder to remove.
    */
   const handleDeleteFolder = async (folder: FolderSummary): Promise<void> => {
     if (
       !window.confirm(
-        `Delete folder "${folder.name}"? Its ${folder.drawingCount} drawing(s) move to ${DEFAULT_FOLDER_NAME}.`,
+        `Delete folder "${folder.name}"? Its subfolders and drawings move to ${DEFAULT_FOLDER_NAME}.`,
       )
     ) {
       return;
@@ -248,23 +256,37 @@ export function Dashboard(): ReactElement {
   };
 
   /**
-   * Starts inline creation of a new folder.
+   * Starts inline creation of a new root-level folder.
    */
   const startCreateFolder = (): void => {
+    setCreatingIn(null);
     setCreatingFolder(true);
     setNewFolderName("");
     requestAnimationFrame(() => newFolderInputRef.current?.focus());
   };
 
   /**
-   * Commits the new-folder input (empty names cancel creation).
+   * Starts inline creation of a subfolder under the given folder.
+   *
+   * @param folder - Folder that will contain the new subfolder.
+   */
+  const startCreateSubfolder = (folder: FolderSummary): void => {
+    setCreatingIn(folder.id);
+    setCreatingFolder(true);
+    setNewFolderName("");
+    requestAnimationFrame(() => newFolderInputRef.current?.focus());
+  };
+
+  /**
+   * Commits the new-folder input (empty names cancel creation) and
+   * selects the freshly created folder.
    */
   const commitCreateFolder = async (): Promise<void> => {
     const name = newFolderName.trim();
     setCreatingFolder(false);
     if (!name) return;
     try {
-      const folder = await createFolder(name);
+      const folder = await createFolder(name, creatingIn ?? undefined);
       const fresh = await refreshFolders();
       const created = fresh.find((entry) => entry.id === folder.id);
       if (created) selectFolder(created.id);
@@ -338,6 +360,36 @@ export function Dashboard(): ReactElement {
   };
 
   /**
+   * Moves a drawing dropped onto a sidebar folder row.
+   *
+   * @param folderId - Target folder identifier.
+   * @param drawingId - Identifier carried by the drag.
+   */
+  const handleDropDrawing = async (folderId: string, drawingId: string): Promise<void> => {
+    setError(null);
+    try {
+      await renameOrMoveDrawing(drawingId, { folderId });
+      await Promise.all([refreshFolders(), refreshCurrent()]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
+  /**
+   * Starts a drag of a drawing card, carrying its id for folder drops.
+   * Drags originating inside a rename input (text selection) are left
+   * to the browser's native text drag.
+   *
+   * @param event - Drag start event on the card.
+   * @param drawing - Drawing represented by the card.
+   */
+  const handleCardDragStart = (event: DragEvent<HTMLLIElement>, drawing: DrawingSummary): void => {
+    if ((event.target as HTMLElement).closest("input")) return;
+    event.dataTransfer.setData(DRAWING_DRAG_MIME, drawing.id);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  /**
    * Imports the selected `.excalidraw` file into the active folder.
    *
    * @param event - File input change event.
@@ -366,68 +418,31 @@ export function Dashboard(): ReactElement {
         </div>
 
         <div className="sidebar-section">Folders</div>
-        <nav className="folder-list">
-          {folders.map((folder) => (
-            <div
-              key={folder.id}
-              className={`folder-row${folder.id === activeFolderId ? " active" : ""}`}
-            >
-              {renamingFolderId === folder.id ? (
-                <InlineRename
-                  value={folder.name}
-                  editing
-                  onStart={() => undefined}
-                  onCommit={(name) => void handleRenameFolderCommit(folder, name)}
-                  onCancel={() => setRenamingFolderId(null)}
-                  className="folder-name"
-                  inputClassName="sidebar-rename-input"
-                />
-              ) : (
-                <>
-                  <button
-                    className="sidebar-btn folder-btn"
-                    onClick={() => selectFolder(folder.id)}
-                  >
-                    <FolderIcon />
-                    <span className="folder-name">{folder.name}</span>
-                    <span className="folder-count">{folder.drawingCount}</span>
-                  </button>
-                  <FolderMenu
-                    canDelete={folder.name !== DEFAULT_FOLDER_NAME}
-                    onRename={() => handleRenameFolder(folder)}
-                    onDelete={() => void handleDeleteFolder(folder)}
-                  />
-                </>
-              )}
-            </div>
-          ))}
-        </nav>
+        <FolderTree
+          folders={folders}
+          activeFolderId={activeFolderId}
+          renamingFolderId={renamingFolderId}
+          creating={creatingFolder}
+          creatingIn={creatingIn}
+          newFolderName={newFolderName}
+          newFolderInputRef={newFolderInputRef}
+          onNewFolderNameChange={setNewFolderName}
+          onNewFolderCommit={() => void commitCreateFolder()}
+          onNewFolderCancel={() => setCreatingFolder(false)}
+          onSelect={selectFolder}
+          onStartRename={(folder) => setRenamingFolderId(folder.id)}
+          onRenameCommit={(folder, name) => void handleRenameFolderCommit(folder, name)}
+          onRenameCancel={() => setRenamingFolderId(null)}
+          onDelete={(folder) => void handleDeleteFolder(folder)}
+          onCreateSubfolder={startCreateSubfolder}
+          onMoveFolder={(folder, parentId) => void handleMoveFolder(folder, parentId)}
+          onDropDrawing={(folderId, drawingId) => void handleDropDrawing(folderId, drawingId)}
+        />
 
-        {creatingFolder ? (
-          <input
-            ref={newFolderInputRef}
-            className="sidebar-rename-input"
-            value={newFolderName}
-            placeholder="Folder name"
-            aria-label="New folder name"
-            onChange={(event) => setNewFolderName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void commitCreateFolder();
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                setCreatingFolder(false);
-              }
-            }}
-            onBlur={() => void commitCreateFolder()}
-          />
-        ) : (
-          <button className="sidebar-btn" onClick={startCreateFolder}>
-            <PlusIcon />
-            New folder
-          </button>
-        )}
+        <button className="sidebar-btn" onClick={startCreateFolder}>
+          <PlusIcon />
+          New folder
+        </button>
 
         <div className="sidebar-spacer" />
 
@@ -476,14 +491,19 @@ export function Dashboard(): ReactElement {
           <div className="empty-state">
             <p>Nothing in "{activeFolder?.name}" yet.</p>
             <p className="muted">
-              Create a drawing or import an existing <code>.excalidraw</code> file — everything
-              is stored on the server, not in your browser.
+              Create a drawing or drop an <code>.excalidraw</code> file here — everything is
+              stored on the server, not in your browser.
             </p>
           </div>
         ) : (
           <ul className="grid">
             {drawings.map((drawing) => (
-              <li key={drawing.id} className="card">
+              <li
+                key={drawing.id}
+                className="card"
+                draggable={!busy}
+                onDragStart={(event) => handleCardDragStart(event, drawing)}
+              >
                 <CardMenu
                   downloadUrl={`/api/drawings/${encodeURIComponent(drawing.id)}/export`}
                   folders={folders}

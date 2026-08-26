@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
+import type { FolderSummary } from "@excalistack/shared";
 
 /** Gap between the trigger button and the popover, in pixels. */
 const POPOVER_GAP_PX = 6;
@@ -7,26 +8,38 @@ const POPOVER_GAP_PX = 6;
 /** Minimum distance kept between the popover and the viewport edge. */
 const VIEWPORT_PADDING_PX = 8;
 
+/** Which content the popover currently shows. */
+type MenuView = "actions" | "move";
+
 /** Props accepted by {@link FolderMenu}. */
 export interface FolderMenuProps {
   /** Invoked when the user picks "Rename". */
   onRename: () => void;
   /** Invoked when the user picks "Delete". */
   onDelete: () => void;
+  /** Invoked when the user picks "New subfolder". */
+  onCreateSubfolder: () => void;
   /**
    * Whether "Delete" is offered at all — the Drafts folder cannot be
    * deleted, so its menu omits the entry entirely.
    */
   canDelete: boolean;
+  /** Legal re-parent targets (already excludes the folder's subtree). */
+  moveTargets: FolderSummary[];
+  /** Current parent of the folder (`null` = root). */
+  currentParentId: string | null;
+  /** Invoked with the new parent (`null` = root) after a move pick. */
+  onMoveFolder: (parentId: string | null) => void;
 }
 
 /**
  * Overflow ("three dot") menu attached to a folder row in the sidebar.
- * Renders a trigger button plus a small popover with rename/delete
- * actions. Closes on outside click, Escape, or scroll.
+ * Offers rename, new-subfolder, delete, and a "Move to…" re-parenting
+ * picker. Closes on outside click, Escape, or scroll.
  */
 export function FolderMenu(props: FolderMenuProps): ReactElement {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<MenuView>("actions");
   const [popoverStyle, setPopoverStyle] = useState<{
     top: number;
     left: number;
@@ -35,6 +48,13 @@ export function FolderMenu(props: FolderMenuProps): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Return to the action list whenever the menu closes.
+  useEffect(() => {
+    if (!open) {
+      setView("actions");
+    }
+  }, [open]);
 
   // Position the popover next to the trigger once it is mounted.
   useLayoutEffect(() => {
@@ -51,7 +71,7 @@ export function FolderMenu(props: FolderMenuProps): ReactElement {
       Math.min(trigger.right - popover.width, window.innerWidth - popover.width - VIEWPORT_PADDING_PX),
     );
     setPopoverStyle({ top, left, visibility: "visible" });
-  }, [open]);
+  }, [open, view]);
 
   useEffect(() => {
     if (!open) return;
@@ -116,33 +136,110 @@ export function FolderMenu(props: FolderMenuProps): ReactElement {
         <>
           <div className="menu-backdrop" />
           <div className="menu" role="menu" ref={popoverRef} style={popoverStyle}>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                props.onRename();
-              }}
-            >
-              Rename
-            </button>
-            {props.canDelete && (
-              <button
-                type="button"
-                className="menu-item menu-item-danger"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  props.onDelete();
-                }}
-              >
-                Delete
-              </button>
+            {view === "actions" ? (
+              <>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    props.onRename();
+                  }}
+                >
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    props.onCreateSubfolder();
+                  }}
+                >
+                  New subfolder
+                </button>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => setView("move")}
+                >
+                  Move to…
+                </button>
+                {props.canDelete && (
+                  <button
+                    type="button"
+                    className="menu-item menu-item-danger"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false);
+                      props.onDelete();
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  disabled={props.currentParentId === null}
+                  onClick={() => {
+                    setOpen(false);
+                    props.onMoveFolder(null);
+                  }}
+                >
+                  <span className="menu-item-label">Root level</span>
+                  {props.currentParentId === null && <MenuCheckIcon />}
+                </button>
+                {props.moveTargets.map((folder) => (
+                  <button
+                    key={folder.id}
+                    type="button"
+                    className="menu-item"
+                    role="menuitem"
+                    disabled={folder.id === props.currentParentId}
+                    onClick={() => {
+                      setOpen(false);
+                      props.onMoveFolder(folder.id);
+                    }}
+                  >
+                    <span className="menu-item-label">{folder.name}</span>
+                    {folder.id === props.currentParentId && <MenuCheckIcon />}
+                  </button>
+                ))}
+              </>
             )}
           </div>
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Accent-colored check mark marking the current selection.
+ */
+function MenuCheckIcon(): ReactElement {
+  return (
+    <svg
+      className="menu-check"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m5 12.5 4.5 4.5L19 7" />
+    </svg>
   );
 }
