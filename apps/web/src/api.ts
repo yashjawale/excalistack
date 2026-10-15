@@ -44,6 +44,22 @@ export function listFolders(): Promise<{ folders: FolderSummary[] }> {
   return request("/api/folders");
 }
 
+/** MCP endpoint availability and recent request activity. */
+export interface McpStatus {
+  enabled: boolean;
+  activeRequests: number;
+  lastRequestAt: number | null;
+}
+
+/** Reads MCP server status; returns null when MCP is disabled. */
+export async function getMcpStatus(): Promise<McpStatus | null> {
+  try {
+    return await request<McpStatus>("/api/mcp/status");
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Creates a folder, optionally nested under a parent.
  *

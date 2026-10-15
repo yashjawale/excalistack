@@ -19,6 +19,7 @@ import { CardMenu } from "../components/CardMenu";
 import { FolderTree } from "../components/FolderTree";
 import { InlineRename } from "../components/InlineRename";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
+import { McpIndicator } from "../components/McpIndicator";
 
 /** localStorage key persisting the selected folder across reloads. */
 const FOLDER_STORAGE_KEY = "excalistack-folder";
@@ -218,6 +219,32 @@ export function Dashboard(): ReactElement {
       cancelled = true;
     };
   }, [refreshFolders, refreshDrawings]);
+
+  // Keep the library view in sync with writes made through MCP or another
+  // browser tab without forcing a full page reload.
+  useEffect(() => {
+    if (!activeFolderId) return;
+    let cancelled = false;
+    const refresh = async (): Promise<void> => {
+      try {
+        const [folderResponse, drawingResponse] = await Promise.all([
+          listFolders(),
+          listDrawings(isSearching ? undefined : activeFolderId, isSearching ? searchInput : undefined),
+        ]);
+        if (cancelled) return;
+        setFolders(folderResponse.folders);
+        if (isSearching) setSearchResults(drawingResponse.drawings);
+        else setDrawings(drawingResponse.drawings);
+      } catch {
+        // Keep the last usable view; normal user-triggered requests surface errors.
+      }
+    };
+    const timer = window.setInterval(() => void refresh(), 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeFolderId, isSearching, searchInput]);
 
   /**
    * Switches the active folder, persists the choice, and reloads the
@@ -653,6 +680,7 @@ export function Dashboard(): ReactElement {
         <div className="sidebar-spacer" />
 
         <div className="sidebar-footer">
+          <McpIndicator />
           <ThemeSwitcher />
         </div>
       </aside>

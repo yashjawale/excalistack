@@ -51,6 +51,21 @@ pnpm dev:server     # API on :3000 (serves the built SPA if present)
 pnpm dev:web        # Vite dev server on :5173, proxies /api to :3000
 ```
 
+Build once before starting the server: it imports the shared package from its
+generated `dist` output. To run locally with MCP enabled:
+
+```shell
+pnpm build
+MCP_ENABLED=true pnpm dev:server
+```
+
+The MCP endpoint is then available at <http://localhost:3000/mcp>. Override
+`PORT` or `DATA_DIR` as needed, for example:
+
+```shell
+MCP_ENABLED=true PORT=3001 DATA_DIR=./data-mcp pnpm dev:server
+```
+
 ## Configuration
 
 Environment variables (all optional):

@@ -19,6 +19,7 @@ import { ExcalidrawDocumentSchema, pickExportAppState } from "@excalistack/share
 import type { StoredDrawing } from "@excalistack/shared";
 import { getDrawing, renameOrMoveDrawing, updateDrawing } from "../api";
 import { InlineRename } from "../components/InlineRename";
+import { McpIndicator } from "../components/McpIndicator";
 import { useTheme } from "../theme";
 
 /** Debounce window (ms) applied before an autosave round-trip starts. */
@@ -126,6 +127,8 @@ export function EditorPage(): ReactElement {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const latestSceneRef = useRef<SceneSnapshot | null>(null);
   const dirtyRef = useRef(false);
+  const savingRef = useRef(false);
+  const externalSceneUpdateRef = useRef(false);
   const timerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -136,6 +139,7 @@ export function EditorPage(): ReactElement {
     const snapshot = latestSceneRef.current;
     if (!snapshot || !dirtyRef.current) return;
     dirtyRef.current = false;
+    savingRef.current = true;
     setStatus({ kind: "saving" });
     try {
       const thumbnail = await generateThumbnail(
@@ -159,8 +163,40 @@ export function EditorPage(): ReactElement {
         kind: "error",
         message: cause instanceof Error ? cause.message : String(cause),
       });
+    } finally {
+      savingRef.current = false;
     }
   }, [id]);
+
+  // Pull external edits (including MCP saves) into the open canvas. Never
+  // replace a scene while the user has unsaved local edits.
+  useEffect(() => {
+    if (!drawing) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      if (dirtyRef.current || savingRef.current) return;
+      void getDrawing(id).then((latest) => {
+        if (cancelled || latest.updatedAt <= (drawing?.updatedAt ?? 0)) return;
+        const api = apiRef.current;
+        if (api) {
+          externalSceneUpdateRef.current = true;
+          api.updateScene({
+            elements: latest.scene.elements as never,
+            appState: latest.scene.appState as never,
+          });
+          api.addFiles(Object.values(latest.files ?? {}) as BinaryFileData[]);
+          window.setTimeout(() => { externalSceneUpdateRef.current = false; }, 0);
+        }
+        setDrawing(latest);
+      }).catch(() => {
+        // Temporary network failures should not interrupt editing.
+      });
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [drawing, id]);
 
   /**
    * Captures a scene snapshot and schedules a debounced autosave.
@@ -298,6 +334,7 @@ export function EditorPage(): ReactElement {
           </span>
         )}
         <div className="editor-status">
+          <McpIndicator />
           {status.kind === "saving" && (
             <span className="status status-saving" title="Saving…">
               <span className="save-dot" />
@@ -328,9 +365,10 @@ export function EditorPage(): ReactElement {
               appState: drawing.scene.appState as never,
               files: drawing.files as never,
             }}
-            onChange={(elements, appState) =>
-              scheduleSave(elements, appState as unknown as Record<string, unknown>)
-            }
+            onChange={(elements, appState) => {
+              if (externalSceneUpdateRef.current) return;
+              scheduleSave(elements, appState as unknown as Record<string, unknown>);
+            }}
           />
           {flash && <div className="editor-flash">{flash}</div>}
         </div>
