@@ -18,8 +18,8 @@ import type {
  */
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, {
-    headers: { "content-type": "application/json" },
     ...init,
+    headers: { "content-type": "application/json", ...init.headers },
   });
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
@@ -154,9 +154,11 @@ export function createDrawing(input: CreateDrawingInput): Promise<StoredDrawing>
 export function updateDrawing(
   id: string,
   input: UpdateDrawingInput,
+  expectedUpdatedAt?: number,
 ): Promise<StoredDrawing> {
   return request(`/api/drawings/${encodeURIComponent(id)}`, {
     method: "PUT",
+    headers: expectedUpdatedAt === undefined ? undefined : { "if-unmodified-since": String(expectedUpdatedAt) },
     body: JSON.stringify(input),
   });
 }

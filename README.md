@@ -112,7 +112,7 @@ docker cp ./backup/excalistack.db excalistack:/app/data/
 | `GET`    | `/api/drawings`             | List drawings; `?folderId=` scopes to folder, `?q=` searches names + scene text globally |
 | `POST`   | `/api/drawings`             | Create; body = API form or raw `.excalidraw` |
 | `GET`    | `/api/drawings/:id`         | Full drawing incl. scene and files           |
-| `PUT`    | `/api/drawings/:id`         | Replace scene/files/thumbnail (autosave)     |
+| `PUT`    | `/api/drawings/:id`         | Replace scene/files/thumbnail; requires `If-Unmodified-Since: <updatedAt>` to prevent stale autosaves |
 | `PATCH`  | `/api/drawings/:id`         | Rename and/or move (`{name?, folderId?}`)    |
 | `DELETE` | `/api/drawings/:id`         | Delete permanently                           |
 | `GET`    | `/api/drawings/:id/export`  | Download as `.excalidraw`                    |

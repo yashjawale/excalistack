@@ -90,10 +90,26 @@ describe("API", () => {
     const updated = await app.inject({
       method: "PUT",
       url: `/api/drawings/${createdBody.id}`,
+      headers: { "if-unmodified-since": String(createdBody.updatedAt) },
       payload: { scene: { elements: [], appState: {} }, thumbnail: null },
     });
     expect(updated.statusCode).toBe(200);
     expect(updated.json()).toMatchObject({ elementCount: 0, name: "Flow" });
+
+    const staleUpdate = await app.inject({
+      method: "PUT",
+      url: `/api/drawings/${createdBody.id}`,
+      headers: { "if-unmodified-since": String(createdBody.updatedAt - 1) },
+      payload: { scene: { elements: [{ id: "stale", type: "rectangle" }], appState: {} } },
+    });
+    expect(staleUpdate.statusCode).toBe(409);
+
+    const unversionedUpdate = await app.inject({
+      method: "PUT",
+      url: `/api/drawings/${createdBody.id}`,
+      payload: { scene: { elements: [], appState: {} } },
+    });
+    expect(unversionedUpdate.statusCode).toBe(428);
 
     const renamed = await app.inject({
       method: "PATCH",

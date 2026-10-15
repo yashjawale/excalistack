@@ -129,8 +129,64 @@ export function EditorPage(): ReactElement {
   const dirtyRef = useRef(false);
   const savingRef = useRef(false);
   const externalSceneUpdateRef = useRef(false);
+  const knownUpdatedAtRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const applyRemoteDrawing = useCallback((latest: StoredDrawing, explainConflict = false): void => {
+    knownUpdatedAtRef.current = latest.updatedAt;
+    dirtyRef.current = false;
+    latestSceneRef.current = null;
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const api = apiRef.current;
+    if (api) {
+      // MCP tools may store valid but minimal Excalidraw elements. Normalize
+      // them through Excalidraw's restore path before updating a live canvas.
+      const restored = restore({
+        type: "excalidraw",
+        version: 2,
+        source: "https://github.com/yash/excalistack",
+        elements: latest.scene.elements,
+        // Excalidraw applies its dark-mode canvas inversion itself. Keep the
+        // scene's base canvas white; a dark saved color gets inverted to white
+        // and makes dark-colored text appear white-on-white.
+        appState: {
+          ...latest.scene.appState,
+          viewBackgroundColor: "#ffffff",
+        },
+        files: latest.files,
+      } as never, null, null);
+      externalSceneUpdateRef.current = true;
+      api.updateScene({
+        elements: restored.elements as never,
+        // `restore()` defaults the theme when it is absent from the saved
+        // scene. Do not let that default flip the live editor to light mode.
+        appState: {
+          ...restored.appState,
+          theme,
+          viewBackgroundColor: "#ffffff",
+        } as never,
+      });
+      api.addFiles(Object.values(restored.files ?? {}) as BinaryFileData[]);
+      window.requestAnimationFrame(() => {
+        api.scrollToContent(restored.elements as never, {
+          fitToViewport: true,
+          viewportZoomFactor: 0.8,
+          animate: false,
+        });
+        window.setTimeout(() => { externalSceneUpdateRef.current = false; }, 300);
+      });
+    }
+    setDrawing(latest);
+    setStatus({ kind: "saved" });
+    if (explainConflict) {
+      setFlash("Updated from MCP; unsaved local edits were replaced.");
+      window.setTimeout(() => setFlash(null), 4000);
+    }
+  }, [theme]);
 
   /**
    * Persists the latest snapshot to the server immediately.
@@ -142,6 +198,12 @@ export function EditorPage(): ReactElement {
     savingRef.current = true;
     setStatus({ kind: "saving" });
     try {
+      const expectedUpdatedAt = knownUpdatedAtRef.current;
+      const latest = await getDrawing(id);
+      if (latest.updatedAt > expectedUpdatedAt) {
+        applyRemoteDrawing(latest, true);
+        return;
+      }
       const thumbnail = await generateThumbnail(
         snapshot.elements,
         snapshot.appState,
@@ -154,10 +216,16 @@ export function EditorPage(): ReactElement {
         },
         files: snapshot.files as StoredDrawing["files"],
         thumbnail,
-      });
+      }, expectedUpdatedAt);
+      knownUpdatedAtRef.current = updated.updatedAt;
       setDrawing(updated);
       setStatus({ kind: "saved" });
     } catch (cause) {
+      const latest = await getDrawing(id).catch(() => null);
+      if (latest && latest.updatedAt > knownUpdatedAtRef.current) {
+        applyRemoteDrawing(latest, true);
+        return;
+      }
       dirtyRef.current = true;
       setStatus({
         kind: "error",
@@ -166,7 +234,7 @@ export function EditorPage(): ReactElement {
     } finally {
       savingRef.current = false;
     }
-  }, [id]);
+  }, [applyRemoteDrawing, id]);
 
   // Pull external edits (including MCP saves) into the open canvas. Never
   // replace a scene while the user has unsaved local edits.
@@ -176,18 +244,8 @@ export function EditorPage(): ReactElement {
     const timer = window.setInterval(() => {
       if (dirtyRef.current || savingRef.current) return;
       void getDrawing(id).then((latest) => {
-        if (cancelled || latest.updatedAt <= (drawing?.updatedAt ?? 0)) return;
-        const api = apiRef.current;
-        if (api) {
-          externalSceneUpdateRef.current = true;
-          api.updateScene({
-            elements: latest.scene.elements as never,
-            appState: latest.scene.appState as never,
-          });
-          api.addFiles(Object.values(latest.files ?? {}) as BinaryFileData[]);
-          window.setTimeout(() => { externalSceneUpdateRef.current = false; }, 0);
-        }
-        setDrawing(latest);
+        if (cancelled || latest.updatedAt <= knownUpdatedAtRef.current) return;
+        applyRemoteDrawing(latest);
       }).catch(() => {
         // Temporary network failures should not interrupt editing.
       });
@@ -196,7 +254,7 @@ export function EditorPage(): ReactElement {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [drawing, id]);
+  }, [applyRemoteDrawing, drawing, id]);
 
   /**
    * Captures a scene snapshot and schedules a debounced autosave.
@@ -236,9 +294,13 @@ export function EditorPage(): ReactElement {
   useEffect(() => {
     let cancelled = false;
     setStatus({ kind: "loading" });
+    knownUpdatedAtRef.current = 0;
     getDrawing(id)
       .then((loaded) => {
-        if (!cancelled) setDrawing(loaded);
+        if (!cancelled) {
+          knownUpdatedAtRef.current = loaded.updatedAt;
+          setDrawing(loaded);
+        }
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
@@ -362,7 +424,11 @@ export function EditorPage(): ReactElement {
             }}
             initialData={{
               elements: drawing.scene.elements as never,
-              appState: drawing.scene.appState as never,
+              appState: {
+                ...drawing.scene.appState,
+                theme,
+                viewBackgroundColor: "#ffffff",
+              } as never,
               files: drawing.files as never,
             }}
             onChange={(elements, appState) => {
