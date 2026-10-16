@@ -134,7 +134,11 @@ export function FolderMenu(props: FolderMenuProps): ReactElement {
 
       {open && (
         <>
-          <div className="menu-backdrop" />
+          <div
+            className="menu-backdrop"
+            onPointerDown={() => setOpen(false)}
+            aria-hidden="true"
+          />
           <div className="menu" role="menu" ref={popoverRef} style={popoverStyle}>
             {view === "actions" ? (
               <>
