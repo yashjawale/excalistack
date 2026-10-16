@@ -70,20 +70,27 @@ function blobToDataURL(blob: Blob): Promise<string> {
  */
 async function generateThumbnail(
   elements: SceneSnapshot["elements"],
-  appState: Record<string, unknown>,
   files: BinaryFiles,
 ): Promise<string | null> {
   const live = elements.filter((element) => !element["isDeleted"]);
   if (live.length === 0) return null;
   const blob = await exportToBlob({
     elements: live as SceneSnapshot["elements"],
-    appState: { ...appState, exportWithDarkMode: false } as Partial<AppState>,
+    // Export against the scene bounds, not the live editor viewport. Carrying
+    // scroll/zoom/selection state here can crop the PNG to the visible region.
+    appState: {
+      theme: "light",
+      exportBackground: true,
+      exportWithDarkMode: false,
+      viewBackgroundColor: "#ffffff",
+    } as Partial<AppState>,
     files,
     mimeType: "image/png",
     exportPadding: 8,
     getDimensions: (width: number, height: number) => ({
       width: THUMBNAIL_WIDTH,
       height: Math.max(1, Math.round((height / width) * THUMBNAIL_WIDTH)),
+      scale: THUMBNAIL_WIDTH / width,
     }),
   });
   return blobToDataURL(blob);
@@ -192,7 +199,6 @@ export function EditorPage(): ReactElement {
       }
       const thumbnail = await generateThumbnail(
         snapshot.elements,
-        snapshot.appState,
         snapshot.files,
       );
       const updated = await updateDrawing(id, {
