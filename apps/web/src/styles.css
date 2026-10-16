@@ -416,10 +416,14 @@ code {
 }
 
 .mcp-indicator {
+  box-sizing: border-box;
+  width: 84px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 4px 8px;
+  padding: 0 8px;
   border: 1px solid color-mix(in srgb, var(--text-muted) 36%, var(--border));
   border-radius: 7px;
   background: color-mix(in srgb, var(--text-muted) 7%, var(--bg-raised));
@@ -808,7 +812,6 @@ code {
 }
 
 .editor-topbar {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -817,14 +820,6 @@ code {
   padding: 8px 16px;
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
-}
-
-.editor-mcp-center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
 }
 
 .editor-back-button {
@@ -893,7 +888,7 @@ code {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .status {

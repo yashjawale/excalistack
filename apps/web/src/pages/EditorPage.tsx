@@ -393,9 +393,6 @@ export function EditorPage(): ReactElement {
             {status.kind === "loading" ? "Loading…" : "…"}
           </span>
         )}
-        <div className="editor-mcp-center">
-          <McpIndicator />
-        </div>
         <div className="editor-right-controls">
           {(status.kind === "saving" || status.kind === "saved") && (
             <span
@@ -412,6 +409,7 @@ export function EditorPage(): ReactElement {
             </span>
           )}
           <ThemeSwitcher />
+          <McpIndicator />
         </div>
       </header>
 
