@@ -14,7 +14,7 @@ import {
   renameFolder,
 } from "../api";
 import type { DrawingSummary, FolderSummary } from "@excalistack/shared";
-import { DRAWING_DRAG_MIME } from "../dragDrop";
+import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
 import { CardMenu } from "../components/CardMenu";
 import { FolderTree } from "../components/FolderTree";
 import { InlineRename } from "../components/InlineRename";
@@ -116,6 +116,7 @@ export function Dashboard(): ReactElement {
   const newFolderInputRef = useRef<HTMLInputElement>(null);
   const fileDragDepth = useRef(0);
   const [fileDragActive, setFileDragActive] = useState(false);
+  const [rootFolderDropActive, setRootFolderDropActive] = useState(false);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
 
@@ -646,7 +647,32 @@ export function Dashboard(): ReactElement {
 
   return (
     <div className="shell">
-      <aside className="sidebar">
+      <aside
+        className={`sidebar${rootFolderDropActive ? " root-folder-drop-target" : ""}`}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setRootFolderDropActive(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+            setRootFolderDropActive(false);
+          }
+        }}
+        onDrop={(event) => {
+          if (!event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          setRootFolderDropActive(false);
+          const source = folders.find(
+            (folder) => folder.id === event.dataTransfer.getData(FOLDER_DRAG_MIME),
+          );
+          if (source && source.name !== DEFAULT_FOLDER_NAME && source.parentId !== null) {
+            void handleMoveFolder(source, null);
+          }
+        }}
+      >
         <div className="sidebar-brand">
           <span className="brand-mark" aria-hidden="true" />
           Excalistack

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DragEvent, ReactElement, RefObject } from "react";
 import type { FolderSummary } from "@excalistack/shared";
-import { DRAWING_DRAG_MIME } from "../dragDrop";
+import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
 import { FolderMenu } from "./FolderMenu";
 import { InlineRename } from "./InlineRename";
 
@@ -62,6 +62,7 @@ function buildChildrenMap(folders: FolderSummary[]): Map<string | null, FolderSu
 export function FolderTree(props: FolderTreeProps): ReactElement {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [draggedFolderId, setDraggedFolderId] = useState<string | null>(null);
   const childrenMap = useMemo(() => buildChildrenMap(props.folders), [props.folders]);
 
   // When a subfolder creation starts under a collapsed ancestor, expand
@@ -109,8 +110,36 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
    * @param folderId - Folder under the cursor.
    */
   const handleDragOver = (event: DragEvent<HTMLDivElement>, folderId: string): void => {
+    if (event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      const source = props.folders.find((folder) => folder.id === draggedFolderId);
+      const target = props.folders.find((folder) => folder.id === folderId);
+      let ancestorId = target?.parentId ?? null;
+      let isDescendant = false;
+      while (ancestorId) {
+        if (ancestorId === source?.id) {
+          isDescendant = true;
+          break;
+        }
+        ancestorId = props.folders.find((folder) => folder.id === ancestorId)?.parentId ?? null;
+      }
+      if (
+        source && target && source.id !== target.id && target.name !== "Drafts" &&
+        source.name !== "Drafts" && !isDescendant
+      ) {
+        event.dataTransfer.dropEffect = "move";
+        setDropTargetId(folderId);
+      } else {
+        event.dataTransfer.dropEffect = "none";
+        setDropTargetId(null);
+      }
+      return;
+    }
     if (!event.dataTransfer.types.includes(DRAWING_DRAG_MIME)) return;
     event.preventDefault();
+    event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
     setDropTargetId(folderId);
   };
@@ -123,6 +152,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
    * @param folderId - Folder that was highlighted.
    */
   const handleDragLeave = (event: DragEvent<HTMLDivElement>, folderId: string): void => {
+    if (event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) event.stopPropagation();
     if (event.currentTarget.contains(event.relatedTarget as Node)) return;
     if (dropTargetId === folderId) {
       setDropTargetId(null);
@@ -136,8 +166,26 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
    * @param folderId - Target folder.
    */
   const handleDrop = (event: DragEvent<HTMLDivElement>, folderId: string): void => {
+    if (event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) {
+      event.preventDefault();
+      event.stopPropagation();
+      setDropTargetId(null);
+      const source = props.folders.find(
+        (folder) => folder.id === event.dataTransfer.getData(FOLDER_DRAG_MIME),
+      );
+      const target = props.folders.find((folder) => folder.id === folderId);
+      if (!source || !target || source.id === target.id || target.name === "Drafts" || source.name === "Drafts") return;
+      let ancestorId = target.parentId;
+      while (ancestorId) {
+        if (ancestorId === source.id) return;
+        ancestorId = props.folders.find((folder) => folder.id === ancestorId)?.parentId ?? null;
+      }
+      props.onMoveFolder(source, target.id);
+      return;
+    }
     if (!event.dataTransfer.types.includes(DRAWING_DRAG_MIME)) return;
     event.preventDefault();
+    event.stopPropagation();
     setDropTargetId(null);
     const drawingId = event.dataTransfer.getData(DRAWING_DRAG_MIME);
     if (drawingId) {
@@ -175,6 +223,16 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
           className={`folder-row${folder.id === props.activeFolderId ? " active" : ""}${
             isDropTarget ? " drop-target" : ""
           }`}
+          draggable={!isRenaming}
+          onDragStart={(event) => {
+            setDraggedFolderId(folder.id);
+            event.dataTransfer.setData(FOLDER_DRAG_MIME, folder.id);
+            event.dataTransfer.effectAllowed = "move";
+          }}
+          onDragEnd={() => {
+            setDraggedFolderId(null);
+            setDropTargetId(null);
+          }}
           style={{ paddingLeft: depth * DEPTH_PX }}
           onDragOver={(event) => handleDragOver(event, folder.id)}
           onDragLeave={(event) => handleDragLeave(event, folder.id)}
