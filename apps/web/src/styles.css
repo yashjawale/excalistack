@@ -237,6 +237,10 @@ code {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
+.sidebar.touch-root-drop-target {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
 .sidebar-brand {
   display: flex;
   align-items: center;
@@ -246,6 +250,11 @@ code {
   font-size: 21px;
   letter-spacing: -0.01em;
   user-select: none;
+}
+
+.mobile-sidebar-close,
+.mobile-nav-toggle {
+  display: none;
 }
 
 .brand-mark {
@@ -284,6 +293,15 @@ code {
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 
+.folder-row.touch-dragging {
+  opacity: 0.55;
+}
+
+.folder-list.touch-root-drop-target {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 8px;
+}
+
 .folder-chevron {
   appearance: none;
   border: none;
@@ -319,6 +337,15 @@ code {
 .folder-row.active .sidebar-btn,
 .folder-row.active .sidebar-btn:hover {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.folder-drag-handle {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
 }
 
 .folder-btn > svg {
@@ -510,6 +537,113 @@ code {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 760px) {
+  .shell {
+    min-width: 0;
+  }
+
+  .sidebar {
+    position: fixed;
+    z-index: 51;
+    inset: 0 auto 0 0;
+    width: min(84vw, 300px);
+    box-sizing: border-box;
+    overflow-y: auto;
+    transform: translateX(-102%);
+    transition: transform 180ms ease;
+    box-shadow: none;
+  }
+
+  .folder-row {
+    touch-action: pan-y;
+  }
+
+  .folder-drag-handle {
+    touch-action: none;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 8px 0 28px rgba(0, 0, 0, 0.22);
+  }
+
+  .mobile-sidebar-backdrop {
+    position: fixed;
+    z-index: 50;
+    inset: 0;
+    display: block;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.42);
+  }
+
+  .mobile-sidebar-close {
+    margin-left: auto;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .content {
+    width: 100%;
+    padding: 18px 14px;
+  }
+
+  .content-header {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .mobile-nav-toggle {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-raised);
+    color: var(--text);
+  }
+
+  .content-heading {
+    flex: 1;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .folder-heading-input {
+    min-width: min(230px, 100%);
+  }
+
+  .content-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .search-wrap {
+    flex: 1 1 150px;
+    min-width: 0;
+    margin-right: 0;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
+  }
 }
 
 .drop-overlay-card {

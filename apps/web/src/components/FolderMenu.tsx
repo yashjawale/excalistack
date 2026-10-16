@@ -30,6 +30,8 @@ export interface FolderMenuProps {
   currentParentId: string | null;
   /** Invoked with the new parent (`null` = root) after a move pick. */
   onMoveFolder: (parentId: string | null) => void;
+  /** Incrementing request token used to open the menu from a touch gesture. */
+  openRequest?: number;
 }
 
 /**
@@ -55,6 +57,10 @@ export function FolderMenu(props: FolderMenuProps): ReactElement {
       setView("actions");
     }
   }, [open]);
+
+  useEffect(() => {
+    if (props.openRequest) setOpen(true);
+  }, [props.openRequest]);
 
   // Position the popover next to the trigger once it is mounted.
   useLayoutEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent, ReactElement, RefObject } from "react";
 import type { FolderSummary } from "@excalistack/shared";
 import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
@@ -63,7 +63,139 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [draggedFolderId, setDraggedFolderId] = useState<string | null>(null);
+  const [touchRootDropTarget, setTouchRootDropTarget] = useState(false);
+  const nativeDragEnabled = useMemo(() => window.matchMedia("(pointer: fine)").matches, []);
+  const [menuOpenRequest, setMenuOpenRequest] = useState<{ folderId: string; token: number } | null>(null);
+  const gestureRef = useRef<{
+    folderId: string;
+    x: number;
+    y: number;
+    armed: boolean;
+    dragging: boolean;
+    dragHandle: boolean;
+  } | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const menuRequestTokenRef = useRef(0);
+  const suppressFolderClickRef = useRef(false);
   const childrenMap = useMemo(() => buildChildrenMap(props.folders), [props.folders]);
+
+  const canMoveFolderInto = (sourceId: string, targetId: string): boolean => {
+    const source = props.folders.find((folder) => folder.id === sourceId);
+    const target = props.folders.find((folder) => folder.id === targetId);
+    if (!source || !target || source.id === target.id || target.name === "Drafts" || source.name === "Drafts") {
+      return false;
+    }
+    let ancestorId = target.parentId;
+    while (ancestorId) {
+      if (ancestorId === source.id) return false;
+      ancestorId = props.folders.find((folder) => folder.id === ancestorId)?.parentId ?? null;
+    }
+    return true;
+  };
+
+  const requestMenuOpen = (folderId: string): void => {
+    menuRequestTokenRef.current += 1;
+    setMenuOpenRequest({ folderId, token: menuRequestTokenRef.current });
+  };
+
+  // Touch interaction distinguishes a stationary long press (open the folder
+  // menu) from a long press followed by movement (re-parent the folder).
+  useEffect(() => {
+    const isPointInSidebar = (x: number, y: number): boolean => {
+      const sidebar = document.querySelector<HTMLElement>(".sidebar");
+      if (!sidebar) return false;
+      const bounds = sidebar.getBoundingClientRect();
+      return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+    };
+
+    const clearGesture = (): void => {
+      if (longPressTimerRef.current !== null) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      gestureRef.current = null;
+      setDraggedFolderId(null);
+      setDropTargetId(null);
+      setTouchRootDropTarget(false);
+      document.querySelector(".sidebar")?.classList.remove("touch-root-drop-target");
+    };
+
+    const handlePointerMove = (event: PointerEvent): void => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const deltaX = event.clientX - gesture.x;
+      const deltaY = event.clientY - gesture.y;
+      const distance = Math.hypot(deltaX, deltaY);
+      if (!gesture.armed) {
+        if (distance <= 10) return;
+        // Start horizontal touch drags immediately; vertical movement before
+        // the hold threshold remains a normal sidebar scroll gesture.
+        if (Math.abs(deltaX) > 6 && Math.abs(deltaX) > Math.abs(deltaY) * 0.5) {
+          gesture.armed = true;
+        } else {
+          clearGesture();
+          return;
+        }
+      }
+      if (!gesture.dragging && distance > 12) {
+        gesture.dragging = true;
+        setDraggedFolderId(gesture.folderId);
+      }
+      if (!gesture.dragging) return;
+
+      if (event.cancelable) event.preventDefault();
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      const row = hit?.closest<HTMLElement>(".folder-row[data-folder-id]");
+      const targetId = row?.dataset["folderId"] ?? null;
+      const insideSidebar = isPointInSidebar(event.clientX, event.clientY);
+      if (targetId && canMoveFolderInto(gesture.folderId, targetId)) {
+        setDropTargetId(targetId);
+        setTouchRootDropTarget(false);
+        document.querySelector(".sidebar")?.classList.remove("touch-root-drop-target");
+      } else {
+        setDropTargetId(null);
+        setTouchRootDropTarget(!targetId && insideSidebar);
+        document.querySelector(".sidebar")?.classList.toggle("touch-root-drop-target", !targetId && insideSidebar);
+      }
+    };
+
+    const handlePointerUp = (event: PointerEvent): void => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      const row = hit?.closest<HTMLElement>(".folder-row[data-folder-id]");
+      const targetId = row?.dataset["folderId"] ?? null;
+      const insideSidebar = isPointInSidebar(event.clientX, event.clientY);
+
+      if (gesture.dragging) {
+        if (event.cancelable) event.preventDefault();
+        suppressFolderClickRef.current = true;
+        const source = props.folders.find((folder) => folder.id === gesture.folderId);
+        if (source && targetId && canMoveFolderInto(source.id, targetId)) {
+          props.onMoveFolder(source, targetId);
+        } else if (source && !targetId && insideSidebar && source.name !== "Drafts" && source.parentId !== null) {
+          props.onMoveFolder(source, null);
+        }
+      } else if (gesture.armed && !gesture.dragHandle) {
+        if (event.cancelable) event.preventDefault();
+        suppressFolderClickRef.current = true;
+        requestMenuOpen(gesture.folderId);
+      }
+      window.setTimeout(() => { suppressFolderClickRef.current = false; }, 0);
+      clearGesture();
+    };
+
+    const handlePointerCancel = (): void => clearGesture();
+    document.addEventListener("pointermove", handlePointerMove, { passive: false });
+    document.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("pointercancel", handlePointerCancel);
+    return () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerCancel);
+      clearGesture();
+    };
+  }, [props.folders, props.onMoveFolder]);
 
   // When a subfolder creation starts under a collapsed ancestor, expand
   // the whole ancestor chain so the input row is visible.
@@ -222,8 +354,36 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         <div
           className={`folder-row${folder.id === props.activeFolderId ? " active" : ""}${
             isDropTarget ? " drop-target" : ""
-          }`}
-          draggable={!isRenaming}
+          }${draggedFolderId === folder.id ? " touch-dragging" : ""}`}
+          data-folder-id={folder.id}
+          onPointerDown={(event) => {
+            if (
+              event.pointerType !== "touch" ||
+              !(event.target instanceof Element) ||
+              !event.target.closest(".folder-btn")
+            ) return;
+            const dragHandle = event.target.closest(".folder-drag-handle") !== null;
+            const gesture = {
+              folderId: folder.id,
+              x: event.clientX,
+              y: event.clientY,
+              armed: dragHandle,
+              dragging: false,
+              dragHandle,
+            };
+            gestureRef.current = gesture;
+            if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current);
+            if (!dragHandle) {
+              longPressTimerRef.current = window.setTimeout(() => {
+                if (gestureRef.current === gesture) gesture.armed = true;
+              }, 450);
+            }
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            if (!gestureRef.current) requestMenuOpen(folder.id);
+          }}
+          draggable={!isRenaming && nativeDragEnabled}
           onDragStart={(event) => {
             setDraggedFolderId(folder.id);
             event.dataTransfer.setData(FOLDER_DRAG_MIME, folder.id);
@@ -232,6 +392,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
           onDragEnd={() => {
             setDraggedFolderId(null);
             setDropTargetId(null);
+            setTouchRootDropTarget(false);
           }}
           style={{ paddingLeft: depth * DEPTH_PX }}
           onDragOver={(event) => handleDragOver(event, folder.id)}
@@ -267,9 +428,18 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
             <>
               <button
                 className="sidebar-btn folder-btn"
-                onClick={() => props.onSelect(folder.id)}
+                onClick={(event) => {
+                  if (suppressFolderClickRef.current) {
+                    suppressFolderClickRef.current = false;
+                    event.preventDefault();
+                    return;
+                  }
+                  props.onSelect(folder.id);
+                }}
               >
-                <FolderIcon />
+                <span className="folder-drag-handle" title="Drag to move folder">
+                  <FolderIcon />
+                </span>
                 <span className="folder-name">{folder.name}</span>
                 <span className="folder-count">{folder.drawingCount}</span>
               </button>
@@ -281,6 +451,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
                 moveTargets={moveTargets}
                 currentParentId={folder.parentId}
                 onMoveFolder={(parentId) => props.onMoveFolder(folder, parentId)}
+                openRequest={menuOpenRequest?.folderId === folder.id ? menuOpenRequest.token : 0}
               />
             </>
           )}
@@ -319,7 +490,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
   const roots = childrenMap.get(null) ?? [];
 
   return (
-    <nav className="folder-list">
+    <nav className={`folder-list${touchRootDropTarget ? " touch-root-drop-target" : ""}`}>
       {roots.map((folder) => renderNode(folder, 0))}
       {props.creating && props.creatingIn === null && (
         <div className="folder-row">
