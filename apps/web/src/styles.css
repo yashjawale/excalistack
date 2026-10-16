@@ -432,15 +432,15 @@ code {
 }
 
 .mcp-indicator-active {
-  border-color: color-mix(in srgb, #f59e0b 34%, var(--border));
-  background: color-mix(in srgb, #fff3bf 42%, var(--bg-raised));
-  color: color-mix(in srgb, #854d0e 82%, var(--text));
+  border-color: color-mix(in srgb, #6965db 45%, var(--border));
+  background: #e0dfff;
+  color: #030064;
 }
 
 :root[data-theme="dark"] .mcp-indicator-active {
-  border-color: color-mix(in srgb, #f59e0b 48%, var(--border));
-  background: color-mix(in srgb, #854d0e 38%, var(--bg-raised));
-  color: #fde68a;
+  border-color: color-mix(in srgb, #a8a5ff 52%, var(--border));
+  background: #403e6a;
+  color: #e0dfff;
 }
 
 .theme-switch {
