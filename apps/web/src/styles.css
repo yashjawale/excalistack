@@ -316,7 +316,13 @@ code {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+.folder-btn > svg {
+  flex: 0 0 16px;
+}
+
 .folder-name {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -706,12 +712,42 @@ code {
 }
 
 .content-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
   font-size: 17px;
   font-weight: 600;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.folder-heading-name {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 0 9px;
+  margin: 0 -9px;
+  cursor: text;
+}
+
+.folder-heading-name:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.folder-heading-input {
+  box-sizing: border-box;
+  height: 36px;
+  min-width: 230px;
+  max-width: 450px;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 8px;
+  outline: none;
 }
 
 .card-name-input {

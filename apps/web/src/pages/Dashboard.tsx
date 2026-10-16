@@ -104,6 +104,7 @@ export function Dashboard(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renamingHeaderFolderId, setRenamingHeaderFolderId] = useState<string | null>(null);
   const [renamingDrawingId, setRenamingDrawingId] = useState<string | null>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [creatingIn, setCreatingIn] = useState<string | null>(null);
@@ -296,6 +297,7 @@ export function Dashboard(): ReactElement {
    */
   const handleRenameFolderCommit = async (folder: FolderSummary, name: string): Promise<void> => {
     setRenamingFolderId(null);
+    setRenamingHeaderFolderId(null);
     if (name === folder.name) return;
     try {
       await renameFolder(folder.id, name);
@@ -712,7 +714,21 @@ export function Dashboard(): ReactElement {
               </>
             ) : (
               <>
-                {loading ? "…" : (activeFolder?.name ?? "…")}{" "}
+                {loading ? "…" : activeFolder?.name === DEFAULT_FOLDER_NAME ? (
+                  activeFolder.name
+                ) : activeFolder ? (
+                  <InlineRename
+                    value={activeFolder.name}
+                    editing={renamingHeaderFolderId === activeFolder.id}
+                    onStart={() => setRenamingHeaderFolderId(activeFolder.id)}
+                    onCommit={(name) => void handleRenameFolderCommit(activeFolder, name)}
+                    onCancel={() => setRenamingHeaderFolderId(null)}
+                    className="folder-heading-name"
+                    inputClassName="folder-heading-input"
+                    ariaLabel="Folder name"
+                    matchDisplayWidth
+                  />
+                ) : "…"}{" "}
                 <span className="muted">({drawings.length})</span>
               </>
             )}

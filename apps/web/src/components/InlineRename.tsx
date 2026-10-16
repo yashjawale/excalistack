@@ -17,6 +17,10 @@ export interface InlineRenameProps {
   className: string;
   /** Class applied to the edit input. */
   inputClassName: string;
+  /** Accessible name for the edit input. */
+  ariaLabel?: string;
+  /** Keep the input the same width as the display label. */
+  matchDisplayWidth?: boolean;
 }
 
 /**
@@ -26,7 +30,16 @@ export interface InlineRenameProps {
  */
 export function InlineRename(props: InlineRenameProps): ReactElement {
   const [draft, setDraft] = useState(props.value);
+  const [displayWidth, setDisplayWidth] = useState<number>();
+  const displayRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEditing = (): void => {
+    if (props.matchDisplayWidth) {
+      setDisplayWidth(displayRef.current?.getBoundingClientRect().width);
+    }
+    props.onStart();
+  };
 
   useEffect(() => {
     if (props.editing) {
@@ -66,15 +79,16 @@ export function InlineRename(props: InlineRenameProps): ReactElement {
   if (!props.editing) {
     return (
       <span
+        ref={displayRef}
         className={props.className}
         title="Click to rename"
-        onClick={props.onStart}
+        onClick={startEditing}
         role="button"
         tabIndex={0}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            props.onStart();
+          startEditing();
           }
         }}
       >
@@ -87,8 +101,9 @@ export function InlineRename(props: InlineRenameProps): ReactElement {
     <input
       ref={inputRef}
       className={props.inputClassName}
+      style={props.matchDisplayWidth && displayWidth ? { width: displayWidth } : undefined}
       value={draft}
-      aria-label="Drawing name"
+      aria-label={props.ariaLabel ?? "Drawing name"}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={submit}
       onKeyDown={handleKeyDown}
