@@ -420,10 +420,10 @@ code {
   align-items: center;
   gap: 5px;
   padding: 4px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 36%, var(--border));
   border-radius: 7px;
-  background: var(--bg-raised);
-  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 7%, var(--bg-raised));
+  color: var(--text);
   font-family: "Assistant", system-ui, sans-serif;
   font-size: 12px;
   font-weight: 500;
