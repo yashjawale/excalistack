@@ -42,7 +42,6 @@ export function McpIndicator(): ReactElement | null {
       aria-label={label}
       role="status"
     >
-      <span className="mcp-indicator-dot" aria-hidden="true" />
       {label}
     </span>
   );

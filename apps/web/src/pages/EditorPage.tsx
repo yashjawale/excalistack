@@ -24,7 +24,7 @@ import { ThemeSwitcher } from "../components/ThemeSwitcher";
 import { useTheme } from "../theme";
 
 /** Debounce window (ms) applied before an autosave round-trip starts. */
-const AUTOSAVE_DEBOUNCE_MS = 800;
+const AUTOSAVE_DEBOUNCE_MS = 1500;
 
 /** Target width (px) of generated dashboard thumbnails. */
 const THUMBNAIL_WIDTH = 320;
@@ -87,47 +87,6 @@ async function generateThumbnail(
     }),
   });
   return blobToDataURL(blob);
-}
-
-/**
- * Green check icon indicating that every change has been saved.
- */
-function CheckIcon(): ReactElement {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m3.5 8.2 2.8 2.8 6.2-6.1" />
-    </svg>
-  );
-}
-
-/** Small, animated save spinner sized to match Excalidraw toolbar icons. */
-function SavingIcon(): ReactElement {
-  return (
-    <svg
-      className="save-spinner"
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="8" cy="8" r="6" opacity="0.25" />
-      <path d="M8 2a6 6 0 0 1 6 6" />
-    </svg>
-  );
 }
 
 /**
@@ -434,15 +393,17 @@ export function EditorPage(): ReactElement {
             {status.kind === "loading" ? "Loading…" : "…"}
           </span>
         )}
-        <div className="editor-status">
-          {status.kind === "saving" && (
-            <span className="status status-saving" title="Saving…">
-              <SavingIcon />
-            </span>
-          )}
-          {status.kind === "saved" && (
-            <span className="status status-ok" title="All changes saved">
-              <CheckIcon />
+        <div className="editor-mcp-center">
+          <McpIndicator />
+        </div>
+        <div className="editor-right-controls">
+          {(status.kind === "saving" || status.kind === "saved") && (
+            <span
+              className="status status-ok"
+              title={status.kind === "saving" ? "Saving changes…" : "All changes saved"}
+              aria-label={status.kind === "saving" ? "Saving changes" : "All changes saved"}
+            >
+              <span className="save-status-dot" aria-hidden="true" />
             </span>
           )}
           {status.kind === "error" && (
@@ -450,9 +411,8 @@ export function EditorPage(): ReactElement {
               {drawing ? "Save failed" : "Load failed"}
             </span>
           )}
-          <McpIndicator />
+          <ThemeSwitcher />
         </div>
-        <ThemeSwitcher />
       </header>
 
       {drawing && (
