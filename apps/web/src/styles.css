@@ -829,7 +829,9 @@ code {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 10px 16px;
+  box-sizing: border-box;
+  min-height: 52px;
+  padding: 8px 16px;
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
 }
@@ -872,20 +874,27 @@ code {
   gap: 8px;
 }
 
-.editor-status .mcp-indicator {
-  margin-right: 4px;
-}
-
 .status {
   font-size: 13px;
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+}
+
+.status svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .status-ok {
   color: var(--ok);
+}
+
+:root[data-theme="dark"] .editor-status .status-ok,
+:root[data-theme="dark"] .editor-status .status-saving {
+  color: #ffffff;
 }
 
 .status-error {
@@ -893,29 +902,18 @@ code {
   cursor: help;
 }
 
-.save-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #f5a80c;
-  display: inline-block;
-  animation: save-dot-pulse 1.1s ease-in-out infinite;
+.save-spinner {
+  animation: save-spinner-rotate 0.9s linear infinite;
 }
 
-@keyframes save-dot-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scale(0.82);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
+@keyframes save-spinner-rotate {
+  to {
+    transform: rotate(360deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .save-dot {
+  .save-spinner {
     animation: none;
   }
 }

@@ -94,18 +94,37 @@ async function generateThumbnail(
 function CheckIcon(): ReactElement {
   return (
     <svg
-      width="17"
-      height="17"
-      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <circle cx="12" cy="12" r="9" opacity="0.3" />
-      <path d="m8.3 12.3 2.5 2.5 5-5.6" />
+      <path d="m3.5 8.2 2.8 2.8 6.2-6.1" />
+    </svg>
+  );
+}
+
+/** Small, animated save spinner sized to match Excalidraw toolbar icons. */
+function SavingIcon(): ReactElement {
+  return (
+    <svg
+      className="save-spinner"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="8" r="6" opacity="0.25" />
+      <path d="M8 2a6 6 0 0 1 6 6" />
     </svg>
   );
 }
@@ -396,10 +415,9 @@ export function EditorPage(): ReactElement {
           </span>
         )}
         <div className="editor-status">
-          <McpIndicator />
           {status.kind === "saving" && (
             <span className="status status-saving" title="Saving…">
-              <span className="save-dot" />
+              <SavingIcon />
             </span>
           )}
           {status.kind === "saved" && (
@@ -412,6 +430,7 @@ export function EditorPage(): ReactElement {
               {drawing ? "Save failed" : "Load failed"}
             </span>
           )}
+          <McpIndicator />
         </div>
       </header>
 
