@@ -297,11 +297,12 @@ code {
   justify-content: center;
   cursor: pointer;
   padding: 0;
+  transform: rotate(90deg);
   transition: transform 120ms ease;
 }
 
 .folder-chevron.collapsed {
-  transform: rotate(90deg);
+  transform: none;
 }
 
 .folder-chevron-spacer {
