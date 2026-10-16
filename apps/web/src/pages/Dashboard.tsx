@@ -680,8 +680,8 @@ export function Dashboard(): ReactElement {
         <div className="sidebar-spacer" />
 
         <div className="sidebar-footer">
-          <McpIndicator />
           <ThemeSwitcher />
+          <McpIndicator />
         </div>
       </aside>
 
