@@ -11,6 +11,7 @@ export type ResolvedTheme = "light" | "dark";
 
 /** localStorage key persisting the user's theme preference. */
 const STORAGE_KEY = "excalistack-theme";
+const THEME_CHANGE_EVENT = "excalistack-theme-change";
 
 /** Browser media query tracking the OS colour scheme. */
 const colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -60,6 +61,19 @@ export function useTheme(): [
   const [preference, setPreference] = useState<ThemePreference>(resolveStoredPreference);
   const [resolved, setResolved] = useState<ResolvedTheme>(() => resolveTheme(preference));
 
+  // Each hook instance must observe theme changes made by other components
+  // (for example, the editor header switcher and the mounted canvas).
+  useEffect(() => {
+    const handleThemeChange = (event: Event): void => {
+      const next = (event as CustomEvent<ThemePreference>).detail;
+      if (next === "light" || next === "dark" || next === "auto") {
+        setPreference(next);
+      }
+    };
+    window.addEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+  }, []);
+
   // Persist the preference whenever it changes.
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, preference);
@@ -93,6 +107,7 @@ export function useTheme(): [
 
   const update = useCallback((next: ThemePreference): void => {
     setPreference(next);
+    window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: next }));
   }, []);
 
   return [preference, resolved, update];

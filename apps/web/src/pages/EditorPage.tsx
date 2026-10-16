@@ -20,6 +20,7 @@ import type { StoredDrawing } from "@excalistack/shared";
 import { getDrawing, renameOrMoveDrawing, updateDrawing } from "../api";
 import { InlineRename } from "../components/InlineRename";
 import { McpIndicator } from "../components/McpIndicator";
+import { ThemeSwitcher } from "../components/ThemeSwitcher";
 import { useTheme } from "../theme";
 
 /** Debounce window (ms) applied before an autosave round-trip starts. */
@@ -151,6 +152,13 @@ export function EditorPage(): ReactElement {
   const knownUpdatedAtRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Excalidraw initializes from `theme` but does not always apply subsequent
+  // prop changes to its live app state. Keep the mounted canvas in sync with
+  // the shared theme switcher as well.
+  useEffect(() => {
+    apiRef.current?.updateScene({ appState: { theme } as never });
+  }, [theme]);
 
   const applyRemoteDrawing = useCallback((latest: StoredDrawing, explainConflict = false): void => {
     knownUpdatedAtRef.current = latest.updatedAt;
@@ -444,6 +452,7 @@ export function EditorPage(): ReactElement {
           )}
           <McpIndicator />
         </div>
+        <ThemeSwitcher />
       </header>
 
       {drawing && (
