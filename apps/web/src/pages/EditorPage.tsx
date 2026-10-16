@@ -396,8 +396,20 @@ export function EditorPage(): ReactElement {
   return (
     <div className="editor-layout">
       <header className="editor-topbar">
-        <Link className="btn btn-small" to="/">
-          ← All drawings
+        <Link className="editor-back-button" to="/" aria-label="Back to all drawings" title="Back to all drawings">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M10 3.5 5.5 8l4.5 4.5" />
+          </svg>
         </Link>
         {drawing ? (
           <InlineRename
