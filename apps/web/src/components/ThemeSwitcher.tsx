@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
-import { useTheme } from "../theme";
-import type { ThemePreference } from "../theme";
+import { useTheme } from "../hooks/useTheme";
+import type { ThemePreference } from "../hooks/useTheme";
 import { MonitorIcon, MoonIcon, SunIcon } from "./Icons";
 
 /** Segmented-control options in display order. */

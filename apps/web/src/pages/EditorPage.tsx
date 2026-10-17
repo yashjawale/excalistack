@@ -21,7 +21,7 @@ import { getDrawing, renameOrMoveDrawing, updateDrawing } from "../api";
 import { InlineRename } from "../components/InlineRename";
 import { McpIndicator } from "../components/McpIndicator";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
-import { useTheme } from "../theme";
+import { useTheme } from "../hooks/useTheme";
 import { normalizeSceneElements } from "../normalizeSceneElements";
 import { blobToDataURL } from "../utils";
 
