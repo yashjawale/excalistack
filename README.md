@@ -35,7 +35,23 @@ To run the prebuilt image from GHCR:
 docker pull ghcr.io/yashjawale/excalistack:latest
 ```
 
-Then start the image (use either image reference):
+Use this Compose file to run it:
+
+```yaml
+services:
+  excalistack:
+    image: ghcr.io/yashjawale/excalistack:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - excalistack_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  excalistack_data:
+```
+
+Save it as `compose.yml` and run `docker compose up -d`. Alternatively, start it with Docker:
 
 ```shell
 docker run -d \
