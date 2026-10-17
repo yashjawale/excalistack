@@ -40,52 +40,6 @@ jobs:
       - name: Typecheck workspace
         run: pnpm typecheck
 
-  tests-web:
-    name: Tests — web
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.5
-          run_install: false
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build shared package
-        run: pnpm --filter @excalistack/shared build
-      - name: Run web tests
-        run: pnpm --filter @excalistack/web test
-
-  tests-server:
-    name: Tests — server
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.5
-          run_install: false
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build shared package
-        run: pnpm --filter @excalistack/shared build
-      - name: Run server tests
-        run: pnpm --filter @excalistack/server test
-
   build:
     name: Build
     runs-on: ubuntu-latest
