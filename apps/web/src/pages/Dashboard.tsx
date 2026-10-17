@@ -705,7 +705,7 @@ export function Dashboard(): ReactElement {
         }}
       >
         <div className="sidebar-brand">
-          <span className="brand-mark" aria-hidden="true" />
+          <span className="brand-logo" aria-hidden="true" />
           Excalistack
           <button
             type="button"

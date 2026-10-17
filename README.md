@@ -1,3 +1,5 @@
+<img src="apps/web/public/logo.svg" alt="Excalistack" width="72" />
+
 # Excalistack
 
 Self-hosted [Excalidraw](https://excalidraw.com) manager. Unlike excalidraw.com — which keeps
