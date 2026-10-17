@@ -23,28 +23,13 @@ import { InlineRename } from "../components/InlineRename";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
 import { McpIndicator } from "../components/McpIndicator";
 import { ImportIcon, PlusIcon, SearchIcon } from "../components/Icons";
+import { formatTimestamp } from "../utils";
 
 /** localStorage key persisting the selected folder across reloads. */
 const FOLDER_STORAGE_KEY = "excalistack-folder";
 
 /** Name of the default folder every new drawing lands in. */
 const DEFAULT_FOLDER_NAME = "Drafts";
-
-/**
- * Formats an epoch timestamp as a short locale date/time string.
- *
- * @param epochMillis - Timestamp in epoch milliseconds.
- * @returns Human-readable local date/time.
- */
-function formatTimestamp(epochMillis: number): string {
-  return new Date(epochMillis).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 /**
  * Dashboard listing the drawings of the selected folder, framed by a

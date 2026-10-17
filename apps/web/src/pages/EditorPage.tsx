@@ -23,6 +23,7 @@ import { McpIndicator } from "../components/McpIndicator";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
 import { useTheme } from "../theme";
 import { normalizeSceneElements } from "../normalizeSceneElements";
+import { blobToDataURL } from "../utils";
 
 /** Debounce window (ms) applied before an autosave round-trip starts. */
 const AUTOSAVE_DEBOUNCE_MS = 1500;
@@ -45,21 +46,6 @@ interface SceneSnapshot {
   elements: readonly Readonly<Record<string, unknown>>[];
   appState: Record<string, unknown>;
   files: BinaryFiles;
-}
-
-/**
- * Converts a Blob into a base64 data URL.
- *
- * @param blob - Blob to read.
- * @returns Data URL representation of the blob.
- */
-function blobToDataURL(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read blob"));
-    reader.readAsDataURL(blob);
-  });
 }
 
 /**

@@ -5,6 +5,7 @@ import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
 import { FolderMenu } from "./FolderMenu";
 import { InlineRename } from "./InlineRename";
 import { FolderIcon } from "./Icons";
+import { buildChildrenMap, canMoveFolderInto } from "../utils/folders";
 
 /** Horizontal indentation (px) per nesting depth. */
 const DEPTH_PX = 14;
@@ -39,23 +40,6 @@ export interface FolderTreeProps {
 }
 
 /**
- * Builds a parent → children map from the flat folder list, preserving
- * the API's stable ordering within each level.
- *
- * @param folders - Flat folder list.
- * @returns Children grouped by parent id (`null` key = roots).
- */
-function buildChildrenMap(folders: FolderSummary[]): Map<string | null, FolderSummary[]> {
-  const map = new Map<string | null, FolderSummary[]>();
-  for (const folder of folders) {
-    const siblings = map.get(folder.parentId) ?? [];
-    siblings.push(folder);
-    map.set(folder.parentId, siblings);
-  }
-  return map;
-}
-
-/**
  * Recursively renders the folder hierarchy in the sidebar: indentation
  * per depth, expand/collapse chevrons, inline rename, per-row menus,
  * an inline "new subfolder" input, and drawing drop targets.
@@ -79,20 +63,6 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
   const menuRequestTokenRef = useRef(0);
   const suppressFolderClickRef = useRef(false);
   const childrenMap = useMemo(() => buildChildrenMap(props.folders), [props.folders]);
-
-  const canMoveFolderInto = (sourceId: string, targetId: string): boolean => {
-    const source = props.folders.find((folder) => folder.id === sourceId);
-    const target = props.folders.find((folder) => folder.id === targetId);
-    if (!source || !target || source.id === target.id || target.name === "Drafts" || source.name === "Drafts") {
-      return false;
-    }
-    let ancestorId = target.parentId;
-    while (ancestorId) {
-      if (ancestorId === source.id) return false;
-      ancestorId = props.folders.find((folder) => folder.id === ancestorId)?.parentId ?? null;
-    }
-    return true;
-  };
 
   const requestMenuOpen = (folderId: string): void => {
     menuRequestTokenRef.current += 1;
@@ -149,7 +119,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
       const row = hit?.closest<HTMLElement>(".folder-row[data-folder-id]");
       const targetId = row?.dataset["folderId"] ?? null;
       const insideSidebar = isPointInSidebar(event.clientX, event.clientY);
-      if (targetId && canMoveFolderInto(gesture.folderId, targetId)) {
+      if (targetId && canMoveFolderInto(props.folders, gesture.folderId, targetId)) {
         setDropTargetId(targetId);
         setTouchRootDropTarget(false);
         document.querySelector(".sidebar")?.classList.remove("touch-root-drop-target");
@@ -172,7 +142,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         if (event.cancelable) event.preventDefault();
         suppressFolderClickRef.current = true;
         const source = props.folders.find((folder) => folder.id === gesture.folderId);
-        if (source && targetId && canMoveFolderInto(source.id, targetId)) {
+        if (source && targetId && canMoveFolderInto(props.folders, source.id, targetId)) {
           props.onMoveFolder(source, targetId);
         } else if (source && !targetId && insideSidebar && source.name !== "Drafts" && source.parentId !== null) {
           props.onMoveFolder(source, null);
