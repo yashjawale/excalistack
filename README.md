@@ -2,6 +2,9 @@
 
 # Excalistack
 
+[![CI](https://github.com/yash/excalistack/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yash/excalistack/actions/workflows/ci.yml)
+![Node.js 22+](https://img.shields.io/badge/Node.js-%E2%89%A522-339933?logo=node.js&logoColor=white)
+
 Self-hosted Excalidraw library for storing, organizing, and editing multiple drawings on your server. It keeps drawings in SQLite and supports native `.excalidraw` import and export.
 
 ## Features
