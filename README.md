@@ -19,6 +19,8 @@ Self-hosted Excalidraw library for storing, organizing, and editing multiple dra
 
 > Excalistack is **not a replacement for [Excalidraw+](https://plus.excalidraw.com/)**. It focuses on providing a self-hosted way to work with multiple drawings. For collaboration and more, check out Excalidraw+. If you find Excalidraw useful, please consider [supporting the original project](https://github.com/sponsors/excalidraw).
 
+> Like what you see? Consider starring the repository 🌟
+
 ## Quick start
 
 With Docker Compose (builds the image from this checkout):
@@ -136,3 +138,7 @@ The endpoint currently has no authentication; keep it local or protect it before
 ## More information
 
 Browse the [documentation index](docs/README.md), including [architecture](docs/architecture.md) and [REST API](docs/api.md) references.
+
+---
+
+<a href="https://yashjawale.github.io/" target="_blank"><img style="height: 22px;" src="https://raw.githubusercontent.com/yashjawale/.github/main/docs/logo.svg" alt="Yash Jawale"/></a>
