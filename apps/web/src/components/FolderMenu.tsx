@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { FolderSummary } from "@excalistack/shared";
+import { MenuCheckIcon } from "./Icons";
 
 /** Gap between the trigger button and the popover, in pixels. */
 const POPOVER_GAP_PX = 6;
@@ -229,27 +230,5 @@ export function FolderMenu(props: FolderMenuProps): ReactElement {
         </>
       )}
     </div>
-  );
-}
-
-/**
- * Accent-colored check mark marking the current selection.
- */
-function MenuCheckIcon(): ReactElement {
-  return (
-    <svg
-      className="menu-check"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m5 12.5 4.5 4.5L19 7" />
-    </svg>
   );
 }

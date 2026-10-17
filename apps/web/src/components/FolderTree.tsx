@@ -4,6 +4,7 @@ import type { FolderSummary } from "@excalistack/shared";
 import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
 import { FolderMenu } from "./FolderMenu";
 import { InlineRename } from "./InlineRename";
+import { FolderIcon } from "./Icons";
 
 /** Horizontal indentation (px) per nesting depth. */
 const DEPTH_PX = 14;
@@ -516,16 +517,5 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         </div>
       )}
     </nav>
-  );
-}
-
-/**
- * Folder glyph shown next to sidebar folder entries.
- */
-function FolderIcon(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
-    </svg>
   );
 }
