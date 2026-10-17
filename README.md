@@ -166,6 +166,27 @@ claude mcp add --transport http excalistack http://localhost:3000/mcp
 
 // Cursor — .cursor/mcp.json
 { "mcpServers": { "excalistack": { "url": "http://localhost:3000/mcp" } } }
+
+// Codex CLI — add from the command line
+codex mcp add excalistack --url http://localhost:3000/mcp
+
+// OpenCode — opencode.json
+{
+  "mcp": {
+    "excalistack": {
+      "type": "remote",
+      "url": "http://localhost:3000/mcp",
+      "enabled": true
+    }
+  }
+}
+```
+
+For Codex, you can alternatively add this to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.excalistack]
+url = "http://localhost:3000/mcp"
 ```
 
 Requires `MCP_ENABLED=true` on the server; use a reverse proxy or tailnet when exposing beyond localhost.
