@@ -171,7 +171,7 @@ claude mcp add --transport http excalistack http://localhost:3000/mcp
 codex mcp add excalistack --url http://localhost:3000/mcp
 
 // OpenCode — add from the command line
-opencode mcp add excalistack --url http://localhost:3000/mcp
+opencode mcp add excalistack --global --url http://localhost:3000/mcp
 ```
 
 For Codex, you can alternatively add this to `~/.codex/config.toml`:
