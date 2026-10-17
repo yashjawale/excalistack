@@ -4,5 +4,7 @@
 - [REST API](api.md) — endpoints, request formats, concurrency, and folder rules
 - [MCP server](mcp.md) — enabling MCP, client setup, tools, and security considerations
 - [MCP widget](mcp-widget.md) — vendored widget provenance and update workflow
+- [Contributing](../CONTRIBUTING.md) — local development and contribution checks
+- [Security](../SECURITY.md) — private vulnerability reporting
 
 For installation, image configuration, backups, and import/export, see the [repository README](../README.md). For package-specific development instructions, see the READMEs in `apps/` and `packages/`.
