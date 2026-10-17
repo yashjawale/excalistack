@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { EditorPage } from "./pages/EditorPage";
-import { useTheme } from "./theme";
+import { useTheme } from "./hooks/useTheme";
 
 /**
  * Top-level application routing.

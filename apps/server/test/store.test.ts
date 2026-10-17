@@ -169,7 +169,7 @@ describe("SqliteDrawingStore", () => {
         elements: [rect("a"), { ...rect("b"), isDeleted: true }],
         appState: { viewBackgroundColor: "#ffffff" },
       },
-      files: { "f1": { mimeType: "image/png", dataURL: "data:image/png;base64,AAA" } },
+      files: { f1: { mimeType: "image/png", dataURL: "data:image/png;base64,AAA" } },
       thumbnail: "data:image/png;base64,thumb",
     };
 

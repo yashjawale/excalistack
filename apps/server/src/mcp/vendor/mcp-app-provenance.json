@@ -1,0 +1,9 @@
+{
+  "upstream": "https://github.com/excalidraw/excalidraw-mcp",
+  "license": "MIT",
+  "release": "v0.3.2",
+  "asset": "excalidraw-mcp-app.mcpb",
+  "assetSha256": "2b494012b5fee5937f9f7b86f04a76cc4a91ec843ee3339b93e4e15e415274ff",
+  "widgetPath": "dist/mcp-app.html",
+  "widgetSha256": "a6989f58aed5e6be06a9569ac959a9b7037bea181d2ffbf751548e9cae334e5e"
+}

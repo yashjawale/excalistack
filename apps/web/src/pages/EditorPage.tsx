@@ -1,31 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  Excalidraw,
-  exportToBlob,
-  restore,
-} from "@excalidraw/excalidraw";
+import { Excalidraw, restore } from "@excalidraw/excalidraw";
 // Component styles for the canvas; loaded only on editor pages so the
 // dashboard does not pull in the excalidraw stylesheet.
 import "@excalidraw/excalidraw/index.css";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
-import type {
-  BinaryFileData,
-  BinaryFiles,
-  AppState,
-} from "@excalidraw/excalidraw/types";
-import { ExcalidrawDocumentSchema, pickExportAppState } from "@excalistack/shared";
+import type { BinaryFileData } from "@excalidraw/excalidraw/types";
+import { ExcalidrawDocumentSchema } from "@excalistack/shared";
 import type { StoredDrawing } from "@excalistack/shared";
-import { getDrawing, renameOrMoveDrawing, updateDrawing } from "../api";
+import { getDrawing, renameOrMoveDrawing } from "../api";
 import { InlineRename } from "../components/InlineRename";
-import { useTheme } from "../theme";
-
-/** Debounce window (ms) applied before an autosave round-trip starts. */
-const AUTOSAVE_DEBOUNCE_MS = 800;
-
-/** Target width (px) of generated dashboard thumbnails. */
-const THUMBNAIL_WIDTH = 320;
+import { McpIndicator } from "../components/McpIndicator";
+import { ThemeSwitcher } from "../components/ThemeSwitcher";
+import { useTheme } from "../hooks/useTheme";
+import { normalizeSceneElements } from "../normalizeSceneElements";
+import { useEditorAutosave } from "../hooks/useEditorAutosave";
 
 /** Lifecycle state of the current drawing session. */
 type EditorStatus =
@@ -34,80 +24,6 @@ type EditorStatus =
   | { kind: "saving" }
   | { kind: "saved" }
   | { kind: "error"; message: string };
-
-/**
- * Latest scene snapshot captured from Excalidraw's `onChange`.
- */
-interface SceneSnapshot {
-  elements: readonly Readonly<Record<string, unknown>>[];
-  appState: Record<string, unknown>;
-  files: BinaryFiles;
-}
-
-/**
- * Converts a Blob into a base64 data URL.
- *
- * @param blob - Blob to read.
- * @returns Data URL representation of the blob.
- */
-function blobToDataURL(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read blob"));
-    reader.readAsDataURL(blob);
-  });
-}
-
-/**
- * Renders a small PNG preview of the scene for dashboard listings.
- *
- * @param elements - Live scene elements.
- * @param appState - Current editor state.
- * @returns Thumbnail data URL, or `null` for empty scenes.
- */
-async function generateThumbnail(
-  elements: SceneSnapshot["elements"],
-  appState: Record<string, unknown>,
-  files: BinaryFiles,
-): Promise<string | null> {
-  const live = elements.filter((element) => !element["isDeleted"]);
-  if (live.length === 0) return null;
-  const blob = await exportToBlob({
-    elements: live as SceneSnapshot["elements"],
-    appState: { ...appState, exportWithDarkMode: false } as Partial<AppState>,
-    files,
-    mimeType: "image/png",
-    exportPadding: 8,
-    getDimensions: (width: number, height: number) => ({
-      width: THUMBNAIL_WIDTH,
-      height: Math.max(1, Math.round((height / width) * THUMBNAIL_WIDTH)),
-    }),
-  });
-  return blobToDataURL(blob);
-}
-
-/**
- * Green check icon indicating that every change has been saved.
- */
-function CheckIcon(): ReactElement {
-  return (
-    <svg
-      width="17"
-      height="17"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="9" opacity="0.3" />
-      <path d="m8.3 12.3 2.5 2.5 5-5.6" />
-    </svg>
-  );
-}
 
 /**
  * Full-screen Excalidraw editor bound to a single stored drawing.
@@ -123,78 +39,54 @@ export function EditorPage(): ReactElement {
   const [flash, setFlash] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
 
-  const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
-  const latestSceneRef = useRef<SceneSnapshot | null>(null);
-  const dirtyRef = useRef(false);
-  const timerRef = useRef<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  /**
-   * Persists the latest snapshot to the server immediately.
-   */
-  const saveNow = useCallback(async (): Promise<void> => {
-    const snapshot = latestSceneRef.current;
-    if (!snapshot || !dirtyRef.current) return;
-    dirtyRef.current = false;
-    setStatus({ kind: "saving" });
-    try {
-      const thumbnail = await generateThumbnail(
-        snapshot.elements,
-        snapshot.appState,
-        snapshot.files,
-      );
-      const updated = await updateDrawing(id, {
-        scene: {
-          elements: snapshot.elements as StoredDrawing["scene"]["elements"],
-          appState: pickExportAppState(snapshot.appState),
-        },
-        files: snapshot.files as StoredDrawing["files"],
-        thumbnail,
-      });
-      setDrawing(updated);
-      setStatus({ kind: "saved" });
-    } catch (cause) {
-      dirtyRef.current = true;
-      setStatus({
-        kind: "error",
-        message: cause instanceof Error ? cause.message : String(cause),
-      });
-    }
-  }, [id]);
-
-  /**
-   * Captures a scene snapshot and schedules a debounced autosave.
-   */
-  const scheduleSave = useCallback(
-    (elements: SceneSnapshot["elements"], appState: Record<string, unknown>): void => {
-      const api = apiRef.current;
-      if (!api) return;
-      latestSceneRef.current = {
-        elements,
-        appState,
-        files: api.getFiles(),
-      };
-      dirtyRef.current = true;
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-      }
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = null;
-        void saveNow();
-      }, AUTOSAVE_DEBOUNCE_MS);
-    },
-    [saveNow],
-  );
-
-  // Flush pending changes when leaving the editor.
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-      }
-      void saveNow();
+  // MCP-created scenes can contain minimal but valid elements. Normalize them
+  // through Excalidraw's restore path before initial render, just as we do for
+  // scenes pulled into an already-open editor.
+  const initialData = useMemo(() => {
+    if (!drawing) return null;
+    const restored = restore(
+      {
+        type: "excalidraw",
+        version: 2,
+        source: "https://github.com/yash/excalistack",
+        elements: normalizeSceneElements(drawing.scene.elements),
+        appState: { ...drawing.scene.appState, viewBackgroundColor: "#ffffff" },
+        files: drawing.files,
+      } as never,
+      null,
+      null,
+    );
+    return {
+      elements: restored.elements,
+      appState: {
+        ...restored.appState,
+        theme,
+        viewBackgroundColor: "#ffffff",
+      },
+      files: restored.files,
     };
-  }, [saveNow]);
+  }, [drawing, theme]);
+
+  const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
+  const externalSceneUpdateRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scheduleSave, markLoaded } = useEditorAutosave({
+    id,
+    theme,
+    drawing,
+    setDrawing,
+    setStatus,
+    setFlash,
+    apiRef,
+    externalSceneUpdateRef,
+  });
+
+  // Excalidraw initializes from `theme` but does not always apply subsequent
+  // prop changes to its live app state. Keep the mounted canvas in sync with
+  // the shared theme switcher as well.
+  useEffect(() => {
+    apiRef.current?.updateScene({ appState: { theme } as never });
+  }, [theme]);
 
   // Load the drawing once.
   useEffect(() => {
@@ -202,7 +94,10 @@ export function EditorPage(): ReactElement {
     setStatus({ kind: "loading" });
     getDrawing(id)
       .then((loaded) => {
-        if (!cancelled) setDrawing(loaded);
+        if (!cancelled) {
+          markLoaded(loaded);
+          setDrawing(loaded);
+        }
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
@@ -215,7 +110,7 @@ export function EditorPage(): ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, markLoaded]);
 
   // Drag-and-drop import of .excalidraw documents onto the editor.
   useEffect(() => {
@@ -227,22 +122,29 @@ export function EditorPage(): ReactElement {
       event.preventDefault();
       const file = event.dataTransfer?.files?.[0];
       if (!file || !/\.(excalidraw|json|excalidrawplus)$/i.test(file.name)) return;
-        void file.text().then(async (text) => {
-          try {
-            const parsed = ExcalidrawDocumentSchema.safeParse(JSON.parse(text));
-            if (!parsed.success) throw new Error("Not a valid .excalidraw document");
-            const restored = restore(parsed.data as never, null, null);
-            const api = apiRef.current;
-            if (!api) return;
-            api.updateScene({ elements: restored.elements as never });
-            api.addFiles(Object.values(restored.files ?? {}) as BinaryFileData[]);
-            setFlash(`Imported "${file.name}"`);
-            window.setTimeout(() => setFlash(null), 2500);
-          } catch (cause) {
-            setFlash(cause instanceof Error ? cause.message : String(cause));
-            window.setTimeout(() => setFlash(null), 3500);
-          }
-        });
+      void file.text().then(async (text) => {
+        try {
+          const parsed = ExcalidrawDocumentSchema.safeParse(JSON.parse(text));
+          if (!parsed.success) throw new Error("Not a valid .excalidraw document");
+          const restored = restore(
+            {
+              ...parsed.data,
+              elements: normalizeSceneElements(parsed.data.elements),
+            } as never,
+            null,
+            null,
+          );
+          const api = apiRef.current;
+          if (!api) return;
+          api.updateScene({ elements: restored.elements as never });
+          api.addFiles(Object.values(restored.files ?? {}) as BinaryFileData[]);
+          setFlash(`Imported "${file.name}"`);
+          window.setTimeout(() => setFlash(null), 2500);
+        } catch (cause) {
+          setFlash(cause instanceof Error ? cause.message : String(cause));
+          window.setTimeout(() => setFlash(null), 3500);
+        }
+      });
     };
 
     container.addEventListener("dragover", prevent);
@@ -279,8 +181,25 @@ export function EditorPage(): ReactElement {
   return (
     <div className="editor-layout">
       <header className="editor-topbar">
-        <Link className="btn btn-small" to="/">
-          ← All drawings
+        <Link
+          className="editor-back-button"
+          to="/"
+          aria-label="Back to all drawings"
+          title="Back to all drawings"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M10 3.5 5.5 8l4.5 4.5" />
+          </svg>
         </Link>
         {drawing ? (
           <InlineRename
@@ -293,19 +212,16 @@ export function EditorPage(): ReactElement {
             inputClassName="editor-title-input"
           />
         ) : (
-          <span className="editor-title">
-            {status.kind === "loading" ? "Loading…" : "…"}
-          </span>
+          <span className="editor-title">{status.kind === "loading" ? "Loading…" : "…"}</span>
         )}
-        <div className="editor-status">
-          {status.kind === "saving" && (
-            <span className="status status-saving" title="Saving…">
-              <span className="save-dot" />
-            </span>
-          )}
-          {status.kind === "saved" && (
-            <span className="status status-ok" title="All changes saved">
-              <CheckIcon />
+        <div className="editor-right-controls">
+          {(status.kind === "saving" || status.kind === "saved") && (
+            <span
+              className="status status-ok"
+              title={status.kind === "saving" ? "Saving changes…" : "All changes saved"}
+              aria-label={status.kind === "saving" ? "Saving changes" : "All changes saved"}
+            >
+              <span className="save-status-dot" aria-hidden="true" />
             </span>
           )}
           {status.kind === "error" && (
@@ -313,6 +229,8 @@ export function EditorPage(): ReactElement {
               {drawing ? "Save failed" : "Load failed"}
             </span>
           )}
+          <ThemeSwitcher />
+          <McpIndicator />
         </div>
       </header>
 
@@ -323,14 +241,11 @@ export function EditorPage(): ReactElement {
             excalidrawAPI={(api) => {
               apiRef.current = api;
             }}
-            initialData={{
-              elements: drawing.scene.elements as never,
-              appState: drawing.scene.appState as never,
-              files: drawing.files as never,
+            initialData={initialData!}
+            onChange={(elements, appState) => {
+              if (externalSceneUpdateRef.current) return;
+              scheduleSave(elements, appState as unknown as Record<string, unknown>);
             }}
-            onChange={(elements, appState) =>
-              scheduleSave(elements, appState as unknown as Record<string, unknown>)
-            }
           />
           {flash && <div className="editor-flash">{flash}</div>}
         </div>

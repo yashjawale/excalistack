@@ -19,7 +19,10 @@ import type { DrawingStore } from "../store.js";
  * @param app - Fastify instance under construction.
  * @param store - Drawing persistence backend.
  */
-export async function registerDrawingRoutes(app: FastifyInstance, store: DrawingStore): Promise<void> {
+export async function registerDrawingRoutes(
+  app: FastifyInstance,
+  store: DrawingStore,
+): Promise<void> {
   /**
    * Lists stored drawings, most recently updated first.
    *
@@ -82,6 +85,24 @@ export async function registerDrawingRoutes(app: FastifyInstance, store: Drawing
   app.put("/api/drawings/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const input = UpdateDrawingInputSchema.parse(request.body ?? {});
+    const existing = store.get(id);
+    if (!existing) {
+      return reply.code(404).send({ message: `Drawing "${id}" not found` });
+    }
+    const expectedUpdatedAtHeader = request.headers["if-unmodified-since"];
+    const expectedUpdatedAt =
+      typeof expectedUpdatedAtHeader === "string" ? Number(expectedUpdatedAtHeader) : undefined;
+    if (expectedUpdatedAt === undefined) {
+      return reply
+        .code(428)
+        .send({ message: "Missing If-Unmodified-Since drawing version; reload before saving" });
+    }
+    if (!Number.isFinite(expectedUpdatedAt)) {
+      return reply.code(400).send({ message: "Invalid If-Unmodified-Since drawing version" });
+    }
+    if (existing.updatedAt !== expectedUpdatedAt) {
+      return reply.code(409).send({ message: "Drawing changed since it was loaded" });
+    }
     const drawing = store.update(id, input);
     if (!drawing) {
       return reply.code(404).send({ message: `Drawing "${id}" not found` });

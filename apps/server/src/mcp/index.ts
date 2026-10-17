@@ -51,6 +51,15 @@ function resolveVendorDistDir(): string | null {
  */
 export async function mountMcp(app: FastifyInstance, options: MountMcpOptions): Promise<void> {
   const distDir = resolveVendorDistDir();
+  let activeRequests = 0;
+  let lastRequestAt: number | null = null;
+
+  app.get("/api/mcp/status", async () => ({
+    enabled: true,
+    activeRequests,
+    lastRequestAt,
+  }));
+
   if (!distDir) {
     app.log.warn("MCP widget not found — /mcp will return 500 until built");
   }
@@ -62,6 +71,8 @@ export async function mountMcp(app: FastifyInstance, options: MountMcpOptions): 
     // transport writes directly to the raw Node response.
     handler: async (request, reply) => {
       reply.hijack();
+      activeRequests += 1;
+      lastRequestAt = Date.now();
 
       const req = request.raw;
       const res = reply.raw;
@@ -80,6 +91,7 @@ export async function mountMcp(app: FastifyInstance, options: MountMcpOptions): 
 
       // Ensure transport/server are closed when the HTTP connection ends.
       res.on("close", () => {
+        activeRequests = Math.max(0, activeRequests - 1);
         void transport.close();
         void server.close();
       });
@@ -94,7 +106,9 @@ export async function mountMcp(app: FastifyInstance, options: MountMcpOptions): 
         app.log.error(error, "MCP request failed");
         if (!res.headersSent) {
           res.writeHead(500, { "content-type": "application/json" });
-          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: String(error) } }));
+          res.end(
+            JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: String(error) } }),
+          );
         }
       }
     },

@@ -1,174 +1,114 @@
+<img src="apps/web/public/logo.svg" alt="Excalistack" width="72" />
+
 # Excalistack
 
-Self-hosted [Excalidraw](https://excalidraw.com) manager. Unlike excalidraw.com — which keeps
-your drawings in browser storage — Excalistack stores every drawing **on your server**, gives
-you a dashboard of all of them, and round-trips native `.excalidraw` files.
+[![CI](https://github.com/yash/excalistack/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yash/excalistack/actions/workflows/ci.yml)
+![Node.js 22+](https://img.shields.io/badge/Node.js-%E2%89%A522-339933?logo=node.js&logoColor=white)
+
+Self-hosted Excalidraw library for storing, organizing, and editing multiple drawings on your server. It keeps drawings in SQLite and supports native `.excalidraw` import and export.
 
 ## Features
 
-- 💾 **Server-side persistence** — drawings live in SQLite on your server, not in a browser
-- 🗂️ **Multiple drawings** with a thumbnail dashboard, rename, and delete
-- 📁 **Nested folders** — organize drawings in a folder tree; drag drawings onto sidebar
-  folders to move them, drop `.excalidraw` files onto the grid to import them
-- 🔍 **Search** — global, case-insensitive match over drawing names and the text inside them
-- 📥📤 **Import/export** — open `.excalidraw` files, download as `.excalidraw`, PNG, or SVG
-- 🖱️ **Drag-and-drop import** onto the editor canvas
-- 🌗 **Light/dark/auto themes** — optional auto mode follows the OS preference live
-- 🪶 **Single lightweight image** — one container, one port, no external database
-- 🤖 **MCP server** (opt-in) — official excalidraw MCP Apps (interactive preview in chat) plus library CRUD, at `/mcp`
-- 🔌 **REST API** for scripted access (`/api/drawings`)
-- 🛜 **Fully self-contained** — UI and editor fonts are served locally, no CDN
+- Multiple drawings with previews, search, and nested folders
+- Server-side persistence in a single SQLite database
+- Native `.excalidraw` import/export, plus PNG and SVG export
+- Excalidraw editor with light, dark, and system themes
+- Optional MCP integration for AI-assisted diagrams and library access
+
+> Excalistack is **not a replacement for [Excalidraw+](https://plus.excalidraw.com/)**. It focuses on providing a self-hosted way to work with multiple drawings. For collaboration and more, check out Excalidraw+. If you find Excalidraw useful, please consider [supporting the original project](https://github.com/sponsors/excalidraw).
 
 ## Quick start
+
+With Docker Compose (builds the image from this checkout):
 
 ```shell
 docker compose up -d
 ```
 
-Then open <http://localhost:3000>.
+Open <http://localhost:3000>.
 
-Or without compose:
+To run a prebuilt image instead:
 
 ```shell
 docker run -d \
+  --name excalistack \
   -p 3000:3000 \
   -v excalistack_data:/app/data \
-  --name excalistack \
-  excalistack:latest
+  ghcr.io/yash/excalistack:latest
 ```
 
-## Development
+## Image configuration
 
-Requires Node.js ≥ 22 and pnpm (via corepack).
+All settings are optional. The defaults below are for the container image.
+
+| Environment variable | Default       | Description                                                      |
+| -------------------- | ------------- | ---------------------------------------------------------------- |
+| `PORT`               | `3000`        | HTTP port inside the container.                                  |
+| `HOST`               | `0.0.0.0`     | Address the server binds to inside the container.                |
+| `DATA_DIR`           | `/app/data`   | Directory for `excalistack.db`; mount a persistent volume here.  |
+| `WEB_DIST_DIR`       | `/app/public` | Directory containing the built web app. Usually leave unchanged. |
+| `MCP_ENABLED`        | `false`       | Set to `true` to enable the MCP endpoint at `/mcp`.              |
+
+For Docker Compose, edit the `environment` section in `docker-compose.yml` and run `docker compose up -d` to apply changes. With `docker run`, pass settings using `-e`, for example `-e MCP_ENABLED=true`. If using a host bind mount for `/app/data`, ensure it is writable by the container user (UID 1000).
+
+## Backup and restore
+
+The database is stored at `/app/data/excalistack.db`. For a consistent file-level backup, stop the container first so SQLite can finish checkpointing its WAL:
 
 ```shell
-pnpm install
-pnpm build          # build shared → server → web
-pnpm test           # vitest suite (server)
-pnpm typecheck      # tsc --noEmit across the workspace
-
-pnpm dev:server     # API on :3000 (serves the built SPA if present)
-pnpm dev:web        # Vite dev server on :5173, proxies /api to :3000
+docker compose stop
+docker cp excalistack:/app/data/excalistack.db ./excalistack.db
+docker compose start
 ```
 
-## Configuration
-
-Environment variables (all optional):
-
-| Variable       | Default           | Description                          |
-| -------------- | ----------------- | ------------------------------------ |
-| `PORT`         | `3000`            | HTTP listen port                     |
-| `HOST`         | `0.0.0.0`         | HTTP bind address                    |
-| `DATA_DIR`     | `/app/data`       | Directory holding the SQLite file    |
-| `WEB_DIST_DIR` | `../web/dist`     | Built SPA directory served at `/`    |
-| `MCP_ENABLED`  | `false`           | When `true`, mounts the MCP endpoint at `/mcp` |
-
-## Backup & restore
-
-Everything lives in a single SQLite file:
+To restore, stop the container, copy the saved database back to `/app/data/excalistack.db`, then start it again:
 
 ```shell
-# backup
-docker cp excalistack:/app/data/excalistack.db ./backup/
-
-# restore
-docker cp ./backup/excalistack.db excalistack:/app/data/
+docker compose stop
+docker cp ./excalistack.db excalistack:/app/data/excalistack.db
+docker compose start
 ```
 
-## Import / export
+## Import and export
 
-- **Import** — dashboard *Import* button, drag-and-drop onto the editor, or scripted:
-  ```shell
-  curl -X POST http://localhost:3000/api/drawings \
-    -H 'content-type: application/json' \
-    --data-binary @my-drawing.excalidraw
-  ```
-- **Export** — the editor's built-in menu (`.excalidraw`, PNG, SVG), the card
-  download action, or:
-  ```shell
-  curl -OJ http://localhost:3000/api/drawings/<id>/export
-  ```
+Import `.excalidraw` files with the dashboard's **Import** button or by dropping files onto the dashboard or editor. Export from the editor as `.excalidraw`, PNG, or SVG; the drawing card's download action exports a native `.excalidraw` file.
 
-## REST API
-
-| Method   | Path                        | Description                                  |
-| -------- | --------------------------- | -------------------------------------------- |
-| `GET`    | `/api/health`               | Liveness probe                               |
-| `GET`    | `/api/drawings`             | List drawings; `?folderId=` scopes to folder, `?q=` searches names + scene text globally |
-| `POST`   | `/api/drawings`             | Create; body = API form or raw `.excalidraw` |
-| `GET`    | `/api/drawings/:id`         | Full drawing incl. scene and files           |
-| `PUT`    | `/api/drawings/:id`         | Replace scene/files/thumbnail (autosave)     |
-| `PATCH`  | `/api/drawings/:id`         | Rename and/or move (`{name?, folderId?}`)    |
-| `DELETE` | `/api/drawings/:id`         | Delete permanently                           |
-| `GET`    | `/api/drawings/:id/export`  | Download as `.excalidraw`                    |
-| `GET`    | `/api/folders`              | List folders with drawing counts             |
-| `POST`   | `/api/folders`              | Create folder                                |
-| `PATCH`  | `/api/folders/:id`          | Rename folder                                |
-| `DELETE` | `/api/folders/:id`          | Delete folder (contents move to Drafts)      |
-
-## MCP server
-
-Opt-in via `MCP_ENABLED=true`. The image embeds the official
-[`@mcp-demos/excalidraw-server`](https://github.com/excalidraw/excalidraw-mcp)
-(MIT) for interactive **MCP Apps** previews, plus excalistack's library tools
-— all on one endpoint, sharing the same SQLite database.
+For scripted imports, export endpoints, and the complete REST API reference, see [API documentation](docs/api.md). For example:
 
 ```shell
-MCP_ENABLED=true docker compose up -d
-# or
-docker run -e MCP_ENABLED=true -p 3000:3000 -v excalistack_data:/app/data excalistack:latest
+curl -X POST http://localhost:3000/api/drawings \
+  -H 'content-type: application/json' \
+  --data-binary @my-drawing.excalidraw
 ```
 
-- Endpoint: `http://localhost:3000/mcp` — Streamable HTTP (stateless), no auth.
-- Checkpoints (ephemeral working state) are stored in SQLite and survive restarts, unlike the upstream memory/tmp stores.
+## MCP
 
-### Tools
+MCP is optional and disabled by default. To enable it with Docker Compose, set `MCP_ENABLED=true` in `docker-compose.yml` and run `docker compose up -d`. With Docker, pass `-e MCP_ENABLED=true` when starting the container. Connect your MCP client to `http://localhost:3000/mcp` using Streamable HTTP.
 
-| Tool | Kind | Notes |
-|---|---|---|
-| `read_me` | official | Element format cheat sheet — call once before `create_view` |
-| `create_view` | official (App) | Streams an Excalidraw diagram into the chat (animated, camera-panned, fullscreen-editable); returns `checkpointId` |
-| `export_to_excalidraw` | official (app-only) | Uploads current scene to `excalidraw.com` for a shareable link |
-| `list_drawings` | excalistack | Summaries, optional `folderId` + `limit` |
-| `search_drawings` | excalistack | Global name + scene-content search |
-| `get_drawing` | excalistack | Full `.excalidraw` document JSON |
-| `save_drawing` | excalistack | Create/update — `elements` is a JSON array string; to persist a `create_view`, `read_checkpoint` first if the user edited in fullscreen |
-| `delete_drawing` | excalistack | Permanent delete |
-| `list_folders` | excalistack | With drawing counts |
+### Connect a client
 
-`save_to_excalistack` is also registered as an app-only widget tool mirroring `export_to_excalidraw` but writing into the library.
+**Claude Code:**
 
-**Stored drawings preview in chat:** `get_drawing` → `create_view(elements)`. Example prompt: *"find my postgres failover diagram, show it, then save a copy to the Architecture folder"*.
-
-### Client configuration
-
-```jsonc
-// Claude Code (streamable HTTP, recommended)
+```shell
 claude mcp add --transport http excalistack http://localhost:3000/mcp
-
-// Claude Desktop — Settings → Connectors → Add custom connector
-// Type: Remote • URL: http://localhost:3000/mcp
-
-// Cursor — .cursor/mcp.json
-{ "mcpServers": { "excalistack": { "url": "http://localhost:3000/mcp" } } }
 ```
 
-Requires `MCP_ENABLED=true` on the server; use a reverse proxy or tailnet when exposing beyond localhost.
+**Claude Desktop:** In **Settings → Connectors → Add custom connector**, choose **Remote** and enter `http://localhost:3000/mcp`.
 
-## Architecture
+**Codex CLI:**
 
-```
-apps/web         Vite + React SPA — dashboard + embedded @excalidraw/excalidraw editor
-apps/server      Fastify REST API, SQLite (better-sqlite3), static SPA hosting
-                 └─ mcp/  official excalidraw MCP Apps + excalistack library tools (opt-in at /mcp)
-packages/shared  zod schemas + domain types shared by both apps
-vendor/excalidraw-mcp  widget build artifact (mcp-app.html) vendored from the official repo (MIT)
+```shell
+codex mcp add excalistack --url http://localhost:3000/mcp
 ```
 
-The server routes are thin wrappers over the `DrawingStore` interface
-(`apps/server/src/store.ts`); swapping or adding backends (and future API surfaces such as an
-MCP server) only requires another implementation of that interface.
+**OpenCode:**
 
-## License
+```shell
+opencode mcp add excalistack --global --url http://localhost:3000/mcp
+```
 
-MIT
+The endpoint currently has no authentication; keep it local or protect it before exposing it to a network. For available tools and more MCP details, see the [MCP guide](docs/mcp.md). The vendored widget and its update process are covered in [MCP widget documentation](docs/mcp-widget.md).
+
+## More information
+
+Browse the [documentation index](docs/README.md), including [architecture](docs/architecture.md) and [REST API](docs/api.md) references.

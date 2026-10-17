@@ -18,8 +18,8 @@ import type {
  */
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, {
-    headers: { "content-type": "application/json" },
     ...init,
+    headers: { "content-type": "application/json", ...init.headers },
   });
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
@@ -42,6 +42,22 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
  */
 export function listFolders(): Promise<{ folders: FolderSummary[] }> {
   return request("/api/folders");
+}
+
+/** MCP endpoint availability and recent request activity. */
+export interface McpStatus {
+  enabled: boolean;
+  activeRequests: number;
+  lastRequestAt: number | null;
+}
+
+/** Reads MCP server status; returns null when MCP is disabled. */
+export async function getMcpStatus(): Promise<McpStatus | null> {
+  try {
+    return await request<McpStatus>("/api/mcp/status");
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -138,9 +154,14 @@ export function createDrawing(input: CreateDrawingInput): Promise<StoredDrawing>
 export function updateDrawing(
   id: string,
   input: UpdateDrawingInput,
+  expectedUpdatedAt?: number,
 ): Promise<StoredDrawing> {
   return request(`/api/drawings/${encodeURIComponent(id)}`, {
     method: "PUT",
+    headers:
+      expectedUpdatedAt === undefined
+        ? undefined
+        : { "if-unmodified-since": String(expectedUpdatedAt) },
     body: JSON.stringify(input),
   });
 }

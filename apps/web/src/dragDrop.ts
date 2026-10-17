@@ -5,3 +5,6 @@
  * lets drop zones distinguish drawing drags from file drags.
  */
 export const DRAWING_DRAG_MIME = "application/x-excalistack-drawing";
+
+/** Custom MIME type used when re-parenting folders in the sidebar. */
+export const FOLDER_DRAG_MIME = "application/x-excalistack-folder";

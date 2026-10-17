@@ -206,9 +206,7 @@ export class SqliteDrawingStore implements DrawingStore {
       .prepare("SELECT id FROM folders WHERE name = ? LIMIT 1")
       .get(DEFAULT_FOLDER_NAME) as { id: string } | undefined;
     if (!drafts) {
-      throw new Error(
-        `Default '${DEFAULT_FOLDER_NAME}' folder missing — run migrations first`,
-      );
+      throw new Error(`Default '${DEFAULT_FOLDER_NAME}' folder missing — run migrations first`);
     }
     this.#draftsId = drafts.id;
 
@@ -216,9 +214,7 @@ export class SqliteDrawingStore implements DrawingStore {
       `INSERT INTO drawings (id, name, elements, app_state, files, thumbnail, element_count, created_at, updated_at, folder_id)
        VALUES (@id, @name, @elements, @app_state, @files, @thumbnail, @element_count, @created_at, @updated_at, @folder_id)`,
     );
-    this.#selectAll = db.prepare(
-      "SELECT * FROM drawings ORDER BY updated_at DESC",
-    );
+    this.#selectAll = db.prepare("SELECT * FROM drawings ORDER BY updated_at DESC");
     this.#selectByFolder = db.prepare(
       "SELECT * FROM drawings WHERE folder_id = ? ORDER BY updated_at DESC",
     );
@@ -239,12 +235,8 @@ export class SqliteDrawingStore implements DrawingStore {
            updated_at = @updated_at
        WHERE id = @id`,
     );
-    this.#renameDrawing = db.prepare(
-      "UPDATE drawings SET name = ?, updated_at = ? WHERE id = ?",
-    );
-    this.#moveDrawing = db.prepare(
-      "UPDATE drawings SET folder_id = ? WHERE id = ?",
-    );
+    this.#renameDrawing = db.prepare("UPDATE drawings SET name = ?, updated_at = ? WHERE id = ?");
+    this.#moveDrawing = db.prepare("UPDATE drawings SET folder_id = ? WHERE id = ?");
     this.#deleteDrawing = db.prepare("DELETE FROM drawings WHERE id = ?");
     this.#selectFolders = db.prepare(
       `SELECT f.id, f.name, f.created_at, f.parent_id, COUNT(d.id) AS drawing_count
@@ -257,12 +249,8 @@ export class SqliteDrawingStore implements DrawingStore {
     this.#insertFolder = db.prepare(
       "INSERT INTO folders (id, name, created_at, parent_id) VALUES (?, ?, ?, ?)",
     );
-    this.#renameFolderStmt = db.prepare(
-      "UPDATE folders SET name = ? WHERE id = ?",
-    );
-    this.#moveFolderStmt = db.prepare(
-      "UPDATE folders SET parent_id = ? WHERE id = ?",
-    );
+    this.#renameFolderStmt = db.prepare("UPDATE folders SET name = ? WHERE id = ?");
+    this.#moveFolderStmt = db.prepare("UPDATE folders SET parent_id = ? WHERE id = ?");
     this.#selectDescendants = db.prepare(
       `WITH RECURSIVE sub(id) AS (
          SELECT id FROM folders WHERE id = ?
@@ -281,9 +269,7 @@ export class SqliteDrawingStore implements DrawingStore {
 
   /** @inheritDoc */
   listFolders(): FolderSummary[] {
-    return (this.#selectFolders.all() as FolderRow[]).map((row) =>
-      this.#toFolderSummary(row),
-    );
+    return (this.#selectFolders.all() as FolderRow[]).map((row) => this.#toFolderSummary(row));
   }
 
   /** @inheritDoc */
@@ -337,13 +323,9 @@ export class SqliteDrawingStore implements DrawingStore {
     const ids = rows.map((row) => row.id);
     const placeholders = ids.map(() => "?").join(",");
     this.#db
-      .prepare(
-        `UPDATE drawings SET folder_id = ? WHERE folder_id IN (${placeholders})`,
-      )
+      .prepare(`UPDATE drawings SET folder_id = ? WHERE folder_id IN (${placeholders})`)
       .run(this.#draftsId, ...ids);
-    this.#db
-      .prepare(`DELETE FROM folders WHERE id IN (${placeholders})`)
-      .run(...ids);
+    this.#db.prepare(`DELETE FROM folders WHERE id IN (${placeholders})`).run(...ids);
     return true;
   }
 

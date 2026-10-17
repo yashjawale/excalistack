@@ -1,8 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import {
-  CreateFolderInputSchema,
-  RenameFolderInputSchema,
-} from "@excalistack/shared";
+import { CreateFolderInputSchema, RenameFolderInputSchema } from "@excalistack/shared";
 import type { FolderSummary } from "@excalistack/shared";
 import type { DrawingStore } from "../store.js";
 
@@ -17,7 +14,10 @@ import type { DrawingStore } from "../store.js";
  * @param app - Fastify instance under construction.
  * @param store - Drawing persistence backend.
  */
-export async function registerFolderRoutes(app: FastifyInstance, store: DrawingStore): Promise<void> {
+export async function registerFolderRoutes(
+  app: FastifyInstance,
+  store: DrawingStore,
+): Promise<void> {
   /**
    * Lists all folders (flat, with `parentId`), oldest first.
    */
@@ -136,12 +136,14 @@ function isDuplicateSiblingName(
   excludeId?: string,
 ): boolean {
   const lowered = name.toLowerCase();
-  return store.listFolders().some(
-    (folder) =>
-      folder.id !== excludeId &&
-      folder.parentId === parentId &&
-      folder.name.toLowerCase() === lowered,
-  );
+  return store
+    .listFolders()
+    .some(
+      (folder) =>
+        folder.id !== excludeId &&
+        folder.parentId === parentId &&
+        folder.name.toLowerCase() === lowered,
+    );
 }
 
 /**

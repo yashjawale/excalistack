@@ -90,10 +90,26 @@ describe("API", () => {
     const updated = await app.inject({
       method: "PUT",
       url: `/api/drawings/${createdBody.id}`,
+      headers: { "if-unmodified-since": String(createdBody.updatedAt) },
       payload: { scene: { elements: [], appState: {} }, thumbnail: null },
     });
     expect(updated.statusCode).toBe(200);
     expect(updated.json()).toMatchObject({ elementCount: 0, name: "Flow" });
+
+    const staleUpdate = await app.inject({
+      method: "PUT",
+      url: `/api/drawings/${createdBody.id}`,
+      headers: { "if-unmodified-since": String(createdBody.updatedAt - 1) },
+      payload: { scene: { elements: [{ id: "stale", type: "rectangle" }], appState: {} } },
+    });
+    expect(staleUpdate.statusCode).toBe(409);
+
+    const unversionedUpdate = await app.inject({
+      method: "PUT",
+      url: `/api/drawings/${createdBody.id}`,
+      payload: { scene: { elements: [], appState: {} } },
+    });
+    expect(unversionedUpdate.statusCode).toBe(428);
 
     const renamed = await app.inject({
       method: "PATCH",
@@ -113,7 +129,9 @@ describe("API", () => {
 
     const deleted = await app.inject({ method: "DELETE", url: `/api/drawings/${createdBody.id}` });
     expect(deleted.statusCode).toBe(204);
-    expect((await app.inject({ method: "GET", url: `/api/drawings/${createdBody.id}` })).statusCode).toBe(404);
+    expect(
+      (await app.inject({ method: "GET", url: `/api/drawings/${createdBody.id}` })).statusCode,
+    ).toBe(404);
   });
 
   it("answers 404 with JSON for unknown drawing ids", async () => {
@@ -362,7 +380,10 @@ describe("Folders API", () => {
       method: "GET",
       url: `/api/drawings?q=kafka&folderId=${folder.id}`,
     });
-    const names = search.json().drawings.map((d: { name: string }) => d.name).sort();
+    const names = search
+      .json()
+      .drawings.map((d: { name: string }) => d.name)
+      .sort();
     expect(names).toEqual(["Kafka topology", "Random notes"]);
     expect(search.json().query).toBe("kafka");
 

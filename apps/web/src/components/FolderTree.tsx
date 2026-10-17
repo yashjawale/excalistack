@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent, ReactElement, RefObject } from "react";
 import type { FolderSummary } from "@excalistack/shared";
-import { DRAWING_DRAG_MIME } from "../dragDrop";
+import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
 import { FolderMenu } from "./FolderMenu";
 import { InlineRename } from "./InlineRename";
+import { FolderIcon } from "./Icons";
+import { buildChildrenMap, canMoveFolderInto } from "../utils/folders";
 
 /** Horizontal indentation (px) per nesting depth. */
 const DEPTH_PX = 14;
@@ -38,23 +40,6 @@ export interface FolderTreeProps {
 }
 
 /**
- * Builds a parent → children map from the flat folder list, preserving
- * the API's stable ordering within each level.
- *
- * @param folders - Flat folder list.
- * @returns Children grouped by parent id (`null` key = roots).
- */
-function buildChildrenMap(folders: FolderSummary[]): Map<string | null, FolderSummary[]> {
-  const map = new Map<string | null, FolderSummary[]>();
-  for (const folder of folders) {
-    const siblings = map.get(folder.parentId) ?? [];
-    siblings.push(folder);
-    map.set(folder.parentId, siblings);
-  }
-  return map;
-}
-
-/**
  * Recursively renders the folder hierarchy in the sidebar: indentation
  * per depth, expand/collapse chevrons, inline rename, per-row menus,
  * an inline "new subfolder" input, and drawing drop targets.
@@ -62,7 +47,139 @@ function buildChildrenMap(folders: FolderSummary[]): Map<string | null, FolderSu
 export function FolderTree(props: FolderTreeProps): ReactElement {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [draggedFolderId, setDraggedFolderId] = useState<string | null>(null);
+  const [touchRootDropTarget, setTouchRootDropTarget] = useState(false);
+  const nativeDragEnabled = useMemo(() => window.matchMedia("(pointer: fine)").matches, []);
+  const [menuOpenRequest, setMenuOpenRequest] = useState<{
+    folderId: string;
+    token: number;
+  } | null>(null);
+  const gestureRef = useRef<{
+    folderId: string;
+    x: number;
+    y: number;
+    armed: boolean;
+    dragging: boolean;
+    dragHandle: boolean;
+  } | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const menuRequestTokenRef = useRef(0);
+  const suppressFolderClickRef = useRef(false);
   const childrenMap = useMemo(() => buildChildrenMap(props.folders), [props.folders]);
+
+  const requestMenuOpen = (folderId: string): void => {
+    menuRequestTokenRef.current += 1;
+    setMenuOpenRequest({ folderId, token: menuRequestTokenRef.current });
+  };
+
+  // Touch interaction distinguishes a stationary long press (open the folder
+  // menu) from a long press followed by movement (re-parent the folder).
+  useEffect(() => {
+    const isPointInSidebar = (x: number, y: number): boolean => {
+      const sidebar = document.querySelector<HTMLElement>(".sidebar");
+      if (!sidebar) return false;
+      const bounds = sidebar.getBoundingClientRect();
+      return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+    };
+
+    const clearGesture = (): void => {
+      if (longPressTimerRef.current !== null) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      gestureRef.current = null;
+      setDraggedFolderId(null);
+      setDropTargetId(null);
+      setTouchRootDropTarget(false);
+      document.querySelector(".sidebar")?.classList.remove("touch-root-drop-target");
+    };
+
+    const handlePointerMove = (event: PointerEvent): void => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const deltaX = event.clientX - gesture.x;
+      const deltaY = event.clientY - gesture.y;
+      const distance = Math.hypot(deltaX, deltaY);
+      if (!gesture.armed) {
+        if (distance <= 10) return;
+        // Start horizontal touch drags immediately; vertical movement before
+        // the hold threshold remains a normal sidebar scroll gesture.
+        if (Math.abs(deltaX) > 6 && Math.abs(deltaX) > Math.abs(deltaY) * 0.5) {
+          gesture.armed = true;
+        } else {
+          clearGesture();
+          return;
+        }
+      }
+      if (!gesture.dragging && distance > 12) {
+        gesture.dragging = true;
+        setDraggedFolderId(gesture.folderId);
+      }
+      if (!gesture.dragging) return;
+
+      if (event.cancelable) event.preventDefault();
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      const row = hit?.closest<HTMLElement>(".folder-row[data-folder-id]");
+      const targetId = row?.dataset["folderId"] ?? null;
+      const insideSidebar = isPointInSidebar(event.clientX, event.clientY);
+      if (targetId && canMoveFolderInto(props.folders, gesture.folderId, targetId)) {
+        setDropTargetId(targetId);
+        setTouchRootDropTarget(false);
+        document.querySelector(".sidebar")?.classList.remove("touch-root-drop-target");
+      } else {
+        setDropTargetId(null);
+        setTouchRootDropTarget(!targetId && insideSidebar);
+        document
+          .querySelector(".sidebar")
+          ?.classList.toggle("touch-root-drop-target", !targetId && insideSidebar);
+      }
+    };
+
+    const handlePointerUp = (event: PointerEvent): void => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      const row = hit?.closest<HTMLElement>(".folder-row[data-folder-id]");
+      const targetId = row?.dataset["folderId"] ?? null;
+      const insideSidebar = isPointInSidebar(event.clientX, event.clientY);
+
+      if (gesture.dragging) {
+        if (event.cancelable) event.preventDefault();
+        suppressFolderClickRef.current = true;
+        const source = props.folders.find((folder) => folder.id === gesture.folderId);
+        if (source && targetId && canMoveFolderInto(props.folders, source.id, targetId)) {
+          props.onMoveFolder(source, targetId);
+        } else if (
+          source &&
+          !targetId &&
+          insideSidebar &&
+          source.name !== "Drafts" &&
+          source.parentId !== null
+        ) {
+          props.onMoveFolder(source, null);
+        }
+      } else if (gesture.armed && !gesture.dragHandle) {
+        if (event.cancelable) event.preventDefault();
+        suppressFolderClickRef.current = true;
+        requestMenuOpen(gesture.folderId);
+      }
+      window.setTimeout(() => {
+        suppressFolderClickRef.current = false;
+      }, 0);
+      clearGesture();
+    };
+
+    const handlePointerCancel = (): void => clearGesture();
+    document.addEventListener("pointermove", handlePointerMove, { passive: false });
+    document.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("pointercancel", handlePointerCancel);
+    return () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerCancel);
+      clearGesture();
+    };
+  }, [props.folders, props.onMoveFolder]);
 
   // When a subfolder creation starts under a collapsed ancestor, expand
   // the whole ancestor chain so the input row is visible.
@@ -109,8 +226,40 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
    * @param folderId - Folder under the cursor.
    */
   const handleDragOver = (event: DragEvent<HTMLDivElement>, folderId: string): void => {
+    if (event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      const source = props.folders.find((folder) => folder.id === draggedFolderId);
+      const target = props.folders.find((folder) => folder.id === folderId);
+      let ancestorId = target?.parentId ?? null;
+      let isDescendant = false;
+      while (ancestorId) {
+        if (ancestorId === source?.id) {
+          isDescendant = true;
+          break;
+        }
+        ancestorId = props.folders.find((folder) => folder.id === ancestorId)?.parentId ?? null;
+      }
+      if (
+        source &&
+        target &&
+        source.id !== target.id &&
+        target.name !== "Drafts" &&
+        source.name !== "Drafts" &&
+        !isDescendant
+      ) {
+        event.dataTransfer.dropEffect = "move";
+        setDropTargetId(folderId);
+      } else {
+        event.dataTransfer.dropEffect = "none";
+        setDropTargetId(null);
+      }
+      return;
+    }
     if (!event.dataTransfer.types.includes(DRAWING_DRAG_MIME)) return;
     event.preventDefault();
+    event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
     setDropTargetId(folderId);
   };
@@ -123,6 +272,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
    * @param folderId - Folder that was highlighted.
    */
   const handleDragLeave = (event: DragEvent<HTMLDivElement>, folderId: string): void => {
+    if (event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) event.stopPropagation();
     if (event.currentTarget.contains(event.relatedTarget as Node)) return;
     if (dropTargetId === folderId) {
       setDropTargetId(null);
@@ -136,8 +286,33 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
    * @param folderId - Target folder.
    */
   const handleDrop = (event: DragEvent<HTMLDivElement>, folderId: string): void => {
+    if (event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) {
+      event.preventDefault();
+      event.stopPropagation();
+      setDropTargetId(null);
+      const source = props.folders.find(
+        (folder) => folder.id === event.dataTransfer.getData(FOLDER_DRAG_MIME),
+      );
+      const target = props.folders.find((folder) => folder.id === folderId);
+      if (
+        !source ||
+        !target ||
+        source.id === target.id ||
+        target.name === "Drafts" ||
+        source.name === "Drafts"
+      )
+        return;
+      let ancestorId = target.parentId;
+      while (ancestorId) {
+        if (ancestorId === source.id) return;
+        ancestorId = props.folders.find((folder) => folder.id === ancestorId)?.parentId ?? null;
+      }
+      props.onMoveFolder(source, target.id);
+      return;
+    }
     if (!event.dataTransfer.types.includes(DRAWING_DRAG_MIME)) return;
     event.preventDefault();
+    event.stopPropagation();
     setDropTargetId(null);
     const drawingId = event.dataTransfer.getData(DRAWING_DRAG_MIME);
     if (drawingId) {
@@ -174,7 +349,47 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         <div
           className={`folder-row${folder.id === props.activeFolderId ? " active" : ""}${
             isDropTarget ? " drop-target" : ""
-          }`}
+          }${draggedFolderId === folder.id ? " touch-dragging" : ""}`}
+          data-folder-id={folder.id}
+          onPointerDown={(event) => {
+            if (
+              event.pointerType !== "touch" ||
+              !(event.target instanceof Element) ||
+              !event.target.closest(".folder-btn")
+            )
+              return;
+            const dragHandle = event.target.closest(".folder-drag-handle") !== null;
+            const gesture = {
+              folderId: folder.id,
+              x: event.clientX,
+              y: event.clientY,
+              armed: dragHandle,
+              dragging: false,
+              dragHandle,
+            };
+            gestureRef.current = gesture;
+            if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current);
+            if (!dragHandle) {
+              longPressTimerRef.current = window.setTimeout(() => {
+                if (gestureRef.current === gesture) gesture.armed = true;
+              }, 450);
+            }
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            if (!gestureRef.current) requestMenuOpen(folder.id);
+          }}
+          draggable={!isRenaming && nativeDragEnabled}
+          onDragStart={(event) => {
+            setDraggedFolderId(folder.id);
+            event.dataTransfer.setData(FOLDER_DRAG_MIME, folder.id);
+            event.dataTransfer.effectAllowed = "move";
+          }}
+          onDragEnd={() => {
+            setDraggedFolderId(null);
+            setDropTargetId(null);
+            setTouchRootDropTarget(false);
+          }}
           style={{ paddingLeft: depth * DEPTH_PX }}
           onDragOver={(event) => handleDragOver(event, folder.id)}
           onDragLeave={(event) => handleDragLeave(event, folder.id)}
@@ -187,7 +402,17 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
               aria-label={isCollapsed ? "Expand folder" : "Collapse folder"}
               onClick={() => toggleCollapsed(folder.id)}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="m9 6 6 6-6 6" />
               </svg>
             </button>
@@ -209,9 +434,18 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
             <>
               <button
                 className="sidebar-btn folder-btn"
-                onClick={() => props.onSelect(folder.id)}
+                onClick={(event) => {
+                  if (suppressFolderClickRef.current) {
+                    suppressFolderClickRef.current = false;
+                    event.preventDefault();
+                    return;
+                  }
+                  props.onSelect(folder.id);
+                }}
               >
-                <FolderIcon />
+                <span className="folder-drag-handle" title="Drag to move folder">
+                  <FolderIcon />
+                </span>
                 <span className="folder-name">{folder.name}</span>
                 <span className="folder-count">{folder.drawingCount}</span>
               </button>
@@ -223,13 +457,13 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
                 moveTargets={moveTargets}
                 currentParentId={folder.parentId}
                 onMoveFolder={(parentId) => props.onMoveFolder(folder, parentId)}
+                openRequest={menuOpenRequest?.folderId === folder.id ? menuOpenRequest.token : 0}
               />
             </>
           )}
         </div>
 
-        {!isCollapsed &&
-          children.map((child) => renderNode(child, depth + 1))}
+        {!isCollapsed && children.map((child) => renderNode(child, depth + 1))}
 
         {!isCollapsed && props.creating && props.creatingIn === folder.id && (
           <div className="folder-row" style={{ paddingLeft: (depth + 1) * DEPTH_PX }}>
@@ -261,7 +495,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
   const roots = childrenMap.get(null) ?? [];
 
   return (
-    <nav className="folder-list">
+    <nav className={`folder-list${touchRootDropTarget ? " touch-root-drop-target" : ""}`}>
       {roots.map((folder) => renderNode(folder, 0))}
       {props.creating && props.creatingIn === null && (
         <div className="folder-row">
@@ -287,16 +521,5 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         </div>
       )}
     </nav>
-  );
-}
-
-/**
- * Folder glyph shown next to sidebar folder entries.
- */
-function FolderIcon(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
-    </svg>
   );
 }

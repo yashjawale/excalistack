@@ -12,79 +12,23 @@ import {
   moveFolder,
   renameOrMoveDrawing,
   renameFolder,
+  getDrawing,
+  updateDrawing,
 } from "../api";
 import type { DrawingSummary, FolderSummary } from "@excalistack/shared";
-import { DRAWING_DRAG_MIME } from "../dragDrop";
-import { CardMenu } from "../components/CardMenu";
+import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
+import { DrawingCard } from "../components/DrawingCard";
 import { FolderTree } from "../components/FolderTree";
 import { InlineRename } from "../components/InlineRename";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
+import { McpIndicator } from "../components/McpIndicator";
+import { ImportIcon, PlusIcon, SearchIcon } from "../components/Icons";
 
 /** localStorage key persisting the selected folder across reloads. */
 const FOLDER_STORAGE_KEY = "excalistack-folder";
 
 /** Name of the default folder every new drawing lands in. */
 const DEFAULT_FOLDER_NAME = "Drafts";
-
-/**
- * Formats an epoch timestamp as a short locale date/time string.
- *
- * @param epochMillis - Timestamp in epoch milliseconds.
- * @returns Human-readable local date/time.
- */
-function formatTimestamp(epochMillis: number): string {
-  return new Date(epochMillis).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-/**
- * Plus-sign icon used by creation actions.
- */
-function PlusIcon(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-/**
- * Tray-arrow icon used by the import action.
- */
-function ImportIcon(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-    </svg>
-  );
-}
-
-/**
- * Magnifier icon for the search input.
- */
-function SearchIcon(): ReactElement {
-  return (
-    <svg
-      className="search-icon"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
 
 /**
  * Dashboard listing the drawings of the selected folder, framed by a
@@ -103,6 +47,7 @@ export function Dashboard(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renamingHeaderFolderId, setRenamingHeaderFolderId] = useState<string | null>(null);
   const [renamingDrawingId, setRenamingDrawingId] = useState<string | null>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [creatingIn, setCreatingIn] = useState<string | null>(null);
@@ -113,7 +58,35 @@ export function Dashboard(): ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
   const fileDragDepth = useRef(0);
+  const thumbnailAttempts = useRef(new Set<string>());
   const [fileDragActive, setFileDragActive] = useState(false);
+  const [rootFolderDropActive, setRootFolderDropActive] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Backfill missing previews in the background. This only loads stored scene
+  // data for rendering; it never mounts or navigates to the user's editor.
+  useEffect(() => {
+    const missing = drawings.filter((drawing) => !drawing.thumbnail && drawing.elementCount > 0);
+    for (const summary of missing) {
+      if (thumbnailAttempts.current.has(summary.id)) continue;
+      thumbnailAttempts.current.add(summary.id);
+      void (async (): Promise<void> => {
+        try {
+          const { generateThumbnail } = await import("../thumbnail");
+          const drawing = await getDrawing(summary.id);
+          if (drawing.thumbnail) return;
+          const thumbnail = await generateThumbnail(drawing);
+          if (!thumbnail) return;
+          await updateDrawing(summary.id, { thumbnail }, drawing.updatedAt);
+          setDrawings((current) =>
+            current.map((item) => (item.id === summary.id ? { ...item, thumbnail } : item)),
+          );
+        } catch {
+          // One best-effort attempt per drawing per dashboard page load.
+        }
+      })();
+    }
+  }, [drawings]);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
 
@@ -200,7 +173,8 @@ export function Dashboard(): ReactElement {
         if (cancelled) return;
         const stored = localStorage.getItem(FOLDER_STORAGE_KEY);
         const drafts = fresh.find((folder) => folder.name === DEFAULT_FOLDER_NAME) ?? fresh[0];
-        const active = stored && fresh.some((folder) => folder.id === stored) ? stored : drafts?.id ?? null;
+        const active =
+          stored && fresh.some((folder) => folder.id === stored) ? stored : (drafts?.id ?? null);
         setActiveFolderId(active);
         if (active) {
           localStorage.setItem(FOLDER_STORAGE_KEY, active);
@@ -219,6 +193,35 @@ export function Dashboard(): ReactElement {
     };
   }, [refreshFolders, refreshDrawings]);
 
+  // Keep the library view in sync with writes made through MCP or another
+  // browser tab without forcing a full page reload.
+  useEffect(() => {
+    if (!activeFolderId) return;
+    let cancelled = false;
+    const refresh = async (): Promise<void> => {
+      try {
+        const [folderResponse, drawingResponse] = await Promise.all([
+          listFolders(),
+          listDrawings(
+            isSearching ? undefined : activeFolderId,
+            isSearching ? searchInput : undefined,
+          ),
+        ]);
+        if (cancelled) return;
+        setFolders(folderResponse.folders);
+        if (isSearching) setSearchResults(drawingResponse.drawings);
+        else setDrawings(drawingResponse.drawings);
+      } catch {
+        // Keep the last usable view; normal user-triggered requests surface errors.
+      }
+    };
+    const timer = window.setInterval(() => void refresh(), 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeFolderId, isSearching, searchInput]);
+
   /**
    * Switches the active folder, persists the choice, and reloads the
    * drawing list.
@@ -227,6 +230,7 @@ export function Dashboard(): ReactElement {
    */
   const selectFolder = useCallback(
     (folderId: string): void => {
+      setMobileSidebarOpen(false);
       if (folderId === activeFolderId) return;
       setActiveFolderId(folderId);
       localStorage.setItem(FOLDER_STORAGE_KEY, folderId);
@@ -269,6 +273,7 @@ export function Dashboard(): ReactElement {
    */
   const handleRenameFolderCommit = async (folder: FolderSummary, name: string): Promise<void> => {
     setRenamingFolderId(null);
+    setRenamingHeaderFolderId(null);
     if (name === folder.name) return;
     try {
       await renameFolder(folder.id, name);
@@ -284,7 +289,10 @@ export function Dashboard(): ReactElement {
    * @param folder - Folder to move.
    * @param parentId - New parent (`null` = root).
    */
-  const handleMoveFolder = async (folder: FolderSummary, parentId: string | null): Promise<void> => {
+  const handleMoveFolder = async (
+    folder: FolderSummary,
+    parentId: string | null,
+  ): Promise<void> => {
     try {
       await moveFolder(folder.id, parentId);
       await refreshFolders();
@@ -557,70 +565,57 @@ export function Dashboard(): ReactElement {
     setBusy(false);
   };
 
-  /**
-   * Renders one drawing card. In search mode the meta line includes the
-   * owning folder name, since results span folders.
-   *
-   * @param drawing - Drawing to render.
-   * @param showFolder - Whether to prefix the meta line with the folder.
-   * @returns The card element.
-   */
-  const renderCard = (drawing: DrawingSummary, showFolder: boolean): ReactElement => (
-    <li
-      key={drawing.id}
-      className="card"
-      draggable={!busy}
-      onDragStart={(event) => handleCardDragStart(event, drawing)}
-    >
-      <CardMenu
-        downloadUrl={`/api/drawings/${encodeURIComponent(drawing.id)}/export`}
-        folders={folders}
-        currentFolderId={drawing.folderId}
-        onRename={() => handleRename(drawing)}
-        onDelete={() => void handleDelete(drawing)}
-        onMove={(folderId) => void handleMove(drawing, folderId)}
-      />
-      <a
-        className="card-thumb-link"
-        href={`/d/${drawing.id}`}
-        onClick={(event) => {
-          event.preventDefault();
-          navigate(`/d/${drawing.id}`);
-        }}
-      >
-        {drawing.thumbnail ? (
-          <img className="card-thumb" src={drawing.thumbnail} alt="" />
-        ) : (
-          <div className="card-thumb card-thumb-empty" aria-hidden="true">
-            empty
-          </div>
-        )}
-      </a>
-      <div className="card-body">
-        <InlineRename
-          value={drawing.name}
-          editing={renamingDrawingId === drawing.id}
-          onStart={() => handleRename(drawing)}
-          onCommit={(name) => void handleRenameCommit(drawing, name)}
-          onCancel={() => setRenamingDrawingId(null)}
-          className="card-name"
-          inputClassName="card-name-input"
-        />
-        <span className="card-meta">
-          {showFolder && `${folderNameById.get(drawing.folderId) ?? "—"} · `}
-          {drawing.elementCount} element{drawing.elementCount === 1 ? "" : "s"} ·{" "}
-          {formatTimestamp(drawing.updatedAt)}
-        </span>
-      </div>
-    </li>
-  );
-
   return (
     <div className="shell">
-      <aside className="sidebar">
+      <aside
+        id="dashboard-sidebar"
+        className={`sidebar${rootFolderDropActive ? " root-folder-drop-target" : ""}${mobileSidebarOpen ? " mobile-open" : ""}`}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setRootFolderDropActive(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+            setRootFolderDropActive(false);
+          }
+        }}
+        onDrop={(event) => {
+          if (!event.dataTransfer.types.includes(FOLDER_DRAG_MIME)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          setRootFolderDropActive(false);
+          const source = folders.find(
+            (folder) => folder.id === event.dataTransfer.getData(FOLDER_DRAG_MIME),
+          );
+          if (source && source.name !== DEFAULT_FOLDER_NAME && source.parentId !== null) {
+            void handleMoveFolder(source, null);
+          }
+        }}
+      >
         <div className="sidebar-brand">
-          <span className="brand-mark" aria-hidden="true" />
+          <span className="brand-logo" aria-hidden="true" />
           Excalistack
+          <button
+            type="button"
+            className="mobile-sidebar-close"
+            aria-label="Close folder navigation"
+            onClick={() => setMobileSidebarOpen(false)}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
         </div>
 
         <div className="sidebar-section">Folders</div>
@@ -654,8 +649,18 @@ export function Dashboard(): ReactElement {
 
         <div className="sidebar-footer">
           <ThemeSwitcher />
+          <McpIndicator />
         </div>
       </aside>
+
+      {mobileSidebarOpen && (
+        <button
+          type="button"
+          className="mobile-sidebar-backdrop"
+          aria-label="Close folder navigation"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
 
       <main
         className="content"
@@ -677,6 +682,27 @@ export function Dashboard(): ReactElement {
         )}
 
         <div className="content-header">
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-label="Open folder navigation"
+            aria-expanded={mobileSidebarOpen}
+            aria-controls="dashboard-sidebar"
+            onClick={() => setMobileSidebarOpen(true)}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
           <h2 className="content-heading">
             {isSearching ? (
               <>
@@ -684,7 +710,25 @@ export function Dashboard(): ReactElement {
               </>
             ) : (
               <>
-                {loading ? "…" : (activeFolder?.name ?? "…")}{" "}
+                {loading ? (
+                  "…"
+                ) : activeFolder?.name === DEFAULT_FOLDER_NAME ? (
+                  activeFolder.name
+                ) : activeFolder ? (
+                  <InlineRename
+                    value={activeFolder.name}
+                    editing={renamingHeaderFolderId === activeFolder.id}
+                    onStart={() => setRenamingHeaderFolderId(activeFolder.id)}
+                    onCommit={(name) => void handleRenameFolderCommit(activeFolder, name)}
+                    onCancel={() => setRenamingHeaderFolderId(null)}
+                    className="folder-heading-name"
+                    inputClassName="folder-heading-input"
+                    ariaLabel="Folder name"
+                    matchDisplayWidth
+                  />
+                ) : (
+                  "…"
+                )}{" "}
                 <span className="muted">({drawings.length})</span>
               </>
             )}
@@ -711,7 +755,16 @@ export function Dashboard(): ReactElement {
                   aria-label="Clear search"
                   onClick={() => setSearchInput("")}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
                     <path d="M6 6l12 12M18 6 6 18" />
                   </svg>
                 </button>
@@ -748,7 +801,23 @@ export function Dashboard(): ReactElement {
             </div>
           ) : (
             <ul className="grid">
-              {visibleDrawings.map((drawing) => renderCard(drawing, true))}
+              {visibleDrawings.map((drawing) => (
+                <DrawingCard
+                  key={drawing.id}
+                  drawing={drawing}
+                  folders={folders}
+                  folderName={folderNameById.get(drawing.folderId) ?? "—"}
+                  busy={busy}
+                  renaming={renamingDrawingId === drawing.id}
+                  onOpen={(item) => navigate(`/d/${item.id}`)}
+                  onDragStart={handleCardDragStart}
+                  onRename={handleRename}
+                  onRenameCommit={(item, name) => void handleRenameCommit(item, name)}
+                  onRenameCancel={() => setRenamingDrawingId(null)}
+                  onDelete={(item) => void handleDelete(item)}
+                  onMove={(item, folderId) => void handleMove(item, folderId)}
+                />
+              ))}
             </ul>
           )
         ) : loading || loadingDrawings ? (
@@ -759,13 +828,28 @@ export function Dashboard(): ReactElement {
           <div className="empty-state">
             <p>Nothing in "{activeFolder?.name}" yet.</p>
             <p className="muted">
-              Create a drawing or drop an <code>.excalidraw</code> file here — everything is
-              stored on the server, not in your browser.
+              Create a drawing or drop an <code>.excalidraw</code> file here — everything is stored
+              on the server, not in your browser.
             </p>
           </div>
         ) : (
           <ul className="grid">
-            {drawings.map((drawing) => renderCard(drawing, false))}
+            {drawings.map((drawing) => (
+              <DrawingCard
+                key={drawing.id}
+                drawing={drawing}
+                folders={folders}
+                busy={busy}
+                renaming={renamingDrawingId === drawing.id}
+                onOpen={(item) => navigate(`/d/${item.id}`)}
+                onDragStart={handleCardDragStart}
+                onRename={handleRename}
+                onRenameCommit={(item, name) => void handleRenameCommit(item, name)}
+                onRenameCancel={() => setRenamingDrawingId(null)}
+                onDelete={(item) => void handleDelete(item)}
+                onMove={(item, folderId) => void handleMove(item, folderId)}
+              />
+            ))}
           </ul>
         )}
 
