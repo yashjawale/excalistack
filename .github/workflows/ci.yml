@@ -35,6 +35,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build shared package
         run: pnpm --filter @excalistack/shared build
+      - name: Check formatting
+        run: pnpm format:check
       - name: Typecheck workspace
         run: pnpm typecheck
 

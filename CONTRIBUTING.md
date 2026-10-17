@@ -22,6 +22,7 @@ Use <http://localhost:5173> for the web app; it proxies API requests to the serv
 - Run checks relevant to your changes. The main workspace checks are:
 
   ```shell
+  pnpm format:check
   pnpm typecheck
   pnpm test
   pnpm --filter @excalistack/web build
@@ -29,6 +30,6 @@ Use <http://localhost:5173> for the web app; it proxies API requests to the serv
 
 - Describe the motivation and behavior change in your pull request, and mention the checks you ran.
 
-GitHub Actions reports separate `Static linting`, `Tests — web`, `Tests — server`, and `Build` checks on pull requests targeting `main` and on pushes to `main`. The static-linting check currently runs the workspace TypeScript typecheck; this repository does not configure a separate linter.
+Run `pnpm format` to apply the repository's Prettier formatting. GitHub Actions reports separate `Static linting`, `Tests — web`, `Tests — server`, and `Build` checks on pull requests targeting `main` and on pushes to `main`. The static-linting check runs formatting verification and the workspace TypeScript typecheck; this repository does not configure a separate lint tool.
 
 For security vulnerabilities, please follow [SECURITY.md](SECURITY.md) rather than opening a public issue.

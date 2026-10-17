@@ -106,7 +106,9 @@ export async function mountMcp(app: FastifyInstance, options: MountMcpOptions): 
         app.log.error(error, "MCP request failed");
         if (!res.headersSent) {
           res.writeHead(500, { "content-type": "application/json" });
-          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: String(error) } }));
+          res.end(
+            JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: String(error) } }),
+          );
         }
       }
     },

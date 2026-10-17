@@ -6,7 +6,6 @@ import { ExcalidrawDocumentSchema, pickExportAppState } from "@excalistack/share
 import type { DrawingStore } from "../store.js";
 
 export function registerWidgetTools(server: McpServer, store: DrawingStore): void {
-
   // App-only tool: widget contexts (fullscreen edits) can call this to
   // persist the current scene directly into the library, mirroring the
   // upstream export_to_excalidraw pattern but writing to our store.
@@ -14,7 +13,8 @@ export function registerWidgetTools(server: McpServer, store: DrawingStore): voi
     server,
     "save_to_excalistack",
     {
-      description: "Saves the current scene into the excalistack library (Drafts by default). Called from the widget; models should use save_drawing instead.",
+      description:
+        "Saves the current scene into the excalistack library (Drafts by default). Called from the widget; models should use save_drawing instead.",
       inputSchema: {
         json: z.string().describe("Serialized .excalidraw document JSON or elements array string"),
         name: z.string().optional().describe("Display name for the saved drawing"),
@@ -37,7 +37,8 @@ export function registerWidgetTools(server: McpServer, store: DrawingStore): voi
           files = doc.files as Record<string, unknown>;
         } else if (parsed?.elements && Array.isArray(parsed.elements)) {
           elements = parsed.elements as unknown[];
-          if (parsed.appState) appState = pickExportAppState(parsed.appState as Record<string, unknown>);
+          if (parsed.appState)
+            appState = pickExportAppState(parsed.appState as Record<string, unknown>);
           if (parsed.files) files = parsed.files as Record<string, unknown>;
         } else {
           elements = Array.isArray(parsed) ? parsed : [];
@@ -49,11 +50,19 @@ export function registerWidgetTools(server: McpServer, store: DrawingStore): voi
           files: files as never,
         });
         return {
-          content: [{ type: "text", text: `Saved as "${created.name}" (${created.id}) — open at /d/${created.id}` }],
+          content: [
+            {
+              type: "text",
+              text: `Saved as "${created.name}" (${created.id}) — open at /d/${created.id}`,
+            },
+          ],
           structuredContent: { id: created.id, name: created.name, folderId: created.folderId },
         };
       } catch (error) {
-        return { content: [{ type: "text", text: `Save failed: ${(error as Error).message}` }], isError: true };
+        return {
+          content: [{ type: "text", text: `Save failed: ${(error as Error).message}` }],
+          isError: true,
+        };
       }
     },
   );

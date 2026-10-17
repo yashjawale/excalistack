@@ -158,7 +158,10 @@ export function updateDrawing(
 ): Promise<StoredDrawing> {
   return request(`/api/drawings/${encodeURIComponent(id)}`, {
     method: "PUT",
-    headers: expectedUpdatedAt === undefined ? undefined : { "if-unmodified-since": String(expectedUpdatedAt) },
+    headers:
+      expectedUpdatedAt === undefined
+        ? undefined
+        : { "if-unmodified-since": String(expectedUpdatedAt) },
     body: JSON.stringify(input),
   });
 }

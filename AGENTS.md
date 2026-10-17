@@ -49,6 +49,7 @@ When a change affects behavior, configuration, API contracts, setup, deployment,
 Run the relevant workspace checks after code changes:
 
 ```shell
+pnpm format:check
 pnpm typecheck
 pnpm test
 pnpm --filter @excalistack/web build

@@ -47,7 +47,9 @@ export function DrawingCard(props: DrawingCardProps): ReactElement {
         {drawing.thumbnail ? (
           <img className="card-thumb" src={drawing.thumbnail} alt="" />
         ) : (
-          <div className="card-thumb card-thumb-empty" aria-hidden="true">empty</div>
+          <div className="card-thumb card-thumb-empty" aria-hidden="true">
+            empty
+          </div>
         )}
       </a>
       <div className="card-body">
@@ -62,7 +64,8 @@ export function DrawingCard(props: DrawingCardProps): ReactElement {
         />
         <span className="card-meta">
           {props.folderName && `${props.folderName} · `}
-          {drawing.elementCount} element{drawing.elementCount === 1 ? "" : "s"} · {formatTimestamp(drawing.updatedAt)}
+          {drawing.elementCount} element{drawing.elementCount === 1 ? "" : "s"} ·{" "}
+          {formatTimestamp(drawing.updatedAt)}
         </span>
       </div>
     </li>

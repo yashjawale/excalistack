@@ -24,9 +24,7 @@ const colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
  */
 function resolveStoredPreference(): ThemePreference {
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === "light" || stored === "dark" || stored === "auto"
-    ? stored
-    : "auto";
+  return stored === "light" || stored === "dark" || stored === "auto" ? stored : "auto";
 }
 
 /**

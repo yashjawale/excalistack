@@ -4,11 +4,11 @@ Excalistack is a self-hosted Excalidraw library. The browser UI talks to a singl
 
 ## Packages
 
-| Path | Responsibility |
-| --- | --- |
-| `apps/web` | React/Vite dashboard and Excalidraw editor. Uses the REST API for library operations and autosaves editor changes. |
-| `apps/server` | Fastify API, SQLite persistence, static SPA hosting, and optional MCP server. |
-| `packages/shared` | Domain types, Zod validation schemas, and Excalidraw document helpers shared by the web app and server. |
+| Path              | Responsibility                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `apps/web`        | React/Vite dashboard and Excalidraw editor. Uses the REST API for library operations and autosaves editor changes. |
+| `apps/server`     | Fastify API, SQLite persistence, static SPA hosting, and optional MCP server.                                      |
+| `packages/shared` | Domain types, Zod validation schemas, and Excalidraw document helpers shared by the web app and server.            |
 
 ## Runtime request flow
 

@@ -41,13 +41,13 @@ docker run -d \
 
 All settings are optional. The defaults below are for the container image.
 
-| Environment variable | Default | Description |
-| --- | --- | --- |
-| `PORT` | `3000` | HTTP port inside the container. |
-| `HOST` | `0.0.0.0` | Address the server binds to inside the container. |
-| `DATA_DIR` | `/app/data` | Directory for `excalistack.db`; mount a persistent volume here. |
-| `WEB_DIST_DIR` | `/app/public` | Directory containing the built web app. Usually leave unchanged. |
-| `MCP_ENABLED` | `false` | Set to `true` to enable the MCP endpoint at `/mcp`. |
+| Environment variable | Default       | Description                                                      |
+| -------------------- | ------------- | ---------------------------------------------------------------- |
+| `PORT`               | `3000`        | HTTP port inside the container.                                  |
+| `HOST`               | `0.0.0.0`     | Address the server binds to inside the container.                |
+| `DATA_DIR`           | `/app/data`   | Directory for `excalistack.db`; mount a persistent volume here.  |
+| `WEB_DIST_DIR`       | `/app/public` | Directory containing the built web app. Usually leave unchanged. |
+| `MCP_ENABLED`        | `false`       | Set to `true` to enable the MCP endpoint at `/mcp`.              |
 
 For Docker Compose, edit the `environment` section in `docker-compose.yml` and run `docker compose up -d` to apply changes. With `docker run`, pass settings using `-e`, for example `-e MCP_ENABLED=true`. If using a host bind mount for `/app/data`, ensure it is writable by the container user (UID 1000).
 

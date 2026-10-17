@@ -1,0 +1,4 @@
+apps/server/src/mcp/vendor/excalidraw-server.ts
+apps/server/src/mcp/vendor/checkpoint-store.ts
+apps/server/src/mcp/vendor/mcp-app.html
+pnpm-lock.yaml

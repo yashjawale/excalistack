@@ -20,23 +20,23 @@ The endpoint uses stateless Streamable HTTP and does not require session affinit
 
 These are vendored from the official Excalidraw MCP server:
 
-| Tool | Purpose |
-| --- | --- |
-| `read_me` | Element format reference and diagramming guidance. Call before drawing. |
-| `create_view` | Render an interactive diagram in the MCP client; returns a checkpoint ID. |
-| `export_to_excalidraw` | Upload the current scene to Excalidraw for a shareable link. |
+| Tool                                 | Purpose                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `read_me`                            | Element format reference and diagramming guidance. Call before drawing.   |
+| `create_view`                        | Render an interactive diagram in the MCP client; returns a checkpoint ID. |
+| `export_to_excalidraw`               | Upload the current scene to Excalidraw for a shareable link.              |
 | `save_checkpoint`, `read_checkpoint` | Persist and retrieve the scene state associated with an interactive view. |
 
 ### Excalistack library tools
 
-| Tool | Purpose |
-| --- | --- |
-| `list_drawings`, `search_drawings` | Browse summaries or search names and scene text. |
-| `get_drawing` | Fetch a complete native Excalidraw document. |
-| `save_drawing` | Create a drawing or replace an existing drawing's content. |
-| `delete_drawing` | Permanently delete a drawing. |
-| `list_folders`, `create_folder`, `update_folder`, `delete_folder` | Browse and manage the nested folder tree. |
-| `save_to_excalistack` | Widget-only tool that saves the current widget scene into the library. |
+| Tool                                                              | Purpose                                                                |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `list_drawings`, `search_drawings`                                | Browse summaries or search names and scene text.                       |
+| `get_drawing`                                                     | Fetch a complete native Excalidraw document.                           |
+| `save_drawing`                                                    | Create a drawing or replace an existing drawing's content.             |
+| `delete_drawing`                                                  | Permanently delete a drawing.                                          |
+| `list_folders`, `create_folder`, `update_folder`, `delete_folder` | Browse and manage the nested folder tree.                              |
+| `save_to_excalistack`                                             | Widget-only tool that saves the current widget scene into the library. |
 
 To show a saved drawing in chat, use `get_drawing`, then pass its document elements to `create_view`. To save a diagram created in a view, read its latest checkpoint first—especially if the user edited it in fullscreen—then call `save_drawing` with the full elements array. `elements` is a JSON array string for that tool.
 

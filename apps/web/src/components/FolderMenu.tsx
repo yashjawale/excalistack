@@ -3,7 +3,6 @@ import type { FolderSummary } from "@excalistack/shared";
 import { useMenuPopover } from "../hooks/useMenuPopover";
 import { MenuCheckIcon } from "./Icons";
 
-
 /** Props accepted by {@link FolderMenu}. */
 export interface FolderMenuProps {
   /** Invoked when the user picks "Rename". */
@@ -33,7 +32,8 @@ export interface FolderMenuProps {
  * picker. Closes on outside click, Escape, or scroll.
  */
 export function FolderMenu(props: FolderMenuProps): ReactElement {
-  const { open, setOpen, view, setView, popoverStyle, rootRef, triggerRef, popoverRef } = useMenuPopover(props.openRequest);
+  const { open, setOpen, view, setView, popoverStyle, rootRef, triggerRef, popoverRef } =
+    useMenuPopover(props.openRequest);
 
   return (
     <div ref={rootRef}>
@@ -54,11 +54,7 @@ export function FolderMenu(props: FolderMenuProps): ReactElement {
 
       {open && (
         <>
-          <div
-            className="menu-backdrop"
-            onPointerDown={() => setOpen(false)}
-            aria-hidden="true"
-          />
+          <div className="menu-backdrop" onPointerDown={() => setOpen(false)} aria-hidden="true" />
           <div className="menu" role="menu" ref={popoverRef} style={popoverStyle}>
             {view === "actions" ? (
               <>

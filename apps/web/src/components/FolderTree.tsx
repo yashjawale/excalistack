@@ -50,7 +50,10 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
   const [draggedFolderId, setDraggedFolderId] = useState<string | null>(null);
   const [touchRootDropTarget, setTouchRootDropTarget] = useState(false);
   const nativeDragEnabled = useMemo(() => window.matchMedia("(pointer: fine)").matches, []);
-  const [menuOpenRequest, setMenuOpenRequest] = useState<{ folderId: string; token: number } | null>(null);
+  const [menuOpenRequest, setMenuOpenRequest] = useState<{
+    folderId: string;
+    token: number;
+  } | null>(null);
   const gestureRef = useRef<{
     folderId: string;
     x: number;
@@ -126,7 +129,9 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
       } else {
         setDropTargetId(null);
         setTouchRootDropTarget(!targetId && insideSidebar);
-        document.querySelector(".sidebar")?.classList.toggle("touch-root-drop-target", !targetId && insideSidebar);
+        document
+          .querySelector(".sidebar")
+          ?.classList.toggle("touch-root-drop-target", !targetId && insideSidebar);
       }
     };
 
@@ -144,7 +149,13 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         const source = props.folders.find((folder) => folder.id === gesture.folderId);
         if (source && targetId && canMoveFolderInto(props.folders, source.id, targetId)) {
           props.onMoveFolder(source, targetId);
-        } else if (source && !targetId && insideSidebar && source.name !== "Drafts" && source.parentId !== null) {
+        } else if (
+          source &&
+          !targetId &&
+          insideSidebar &&
+          source.name !== "Drafts" &&
+          source.parentId !== null
+        ) {
           props.onMoveFolder(source, null);
         }
       } else if (gesture.armed && !gesture.dragHandle) {
@@ -152,7 +163,9 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         suppressFolderClickRef.current = true;
         requestMenuOpen(gesture.folderId);
       }
-      window.setTimeout(() => { suppressFolderClickRef.current = false; }, 0);
+      window.setTimeout(() => {
+        suppressFolderClickRef.current = false;
+      }, 0);
       clearGesture();
     };
 
@@ -229,8 +242,12 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         ancestorId = props.folders.find((folder) => folder.id === ancestorId)?.parentId ?? null;
       }
       if (
-        source && target && source.id !== target.id && target.name !== "Drafts" &&
-        source.name !== "Drafts" && !isDescendant
+        source &&
+        target &&
+        source.id !== target.id &&
+        target.name !== "Drafts" &&
+        source.name !== "Drafts" &&
+        !isDescendant
       ) {
         event.dataTransfer.dropEffect = "move";
         setDropTargetId(folderId);
@@ -277,7 +294,14 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
         (folder) => folder.id === event.dataTransfer.getData(FOLDER_DRAG_MIME),
       );
       const target = props.folders.find((folder) => folder.id === folderId);
-      if (!source || !target || source.id === target.id || target.name === "Drafts" || source.name === "Drafts") return;
+      if (
+        !source ||
+        !target ||
+        source.id === target.id ||
+        target.name === "Drafts" ||
+        source.name === "Drafts"
+      )
+        return;
       let ancestorId = target.parentId;
       while (ancestorId) {
         if (ancestorId === source.id) return;
@@ -332,7 +356,8 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
               event.pointerType !== "touch" ||
               !(event.target instanceof Element) ||
               !event.target.closest(".folder-btn")
-            ) return;
+            )
+              return;
             const dragHandle = event.target.closest(".folder-drag-handle") !== null;
             const gesture = {
               folderId: folder.id,
@@ -377,7 +402,17 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
               aria-label={isCollapsed ? "Expand folder" : "Collapse folder"}
               onClick={() => toggleCollapsed(folder.id)}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="m9 6 6 6-6 6" />
               </svg>
             </button>
@@ -428,8 +463,7 @@ export function FolderTree(props: FolderTreeProps): ReactElement {
           )}
         </div>
 
-        {!isCollapsed &&
-          children.map((child) => renderNode(child, depth + 1))}
+        {!isCollapsed && children.map((child) => renderNode(child, depth + 1))}
 
         {!isCollapsed && props.creating && props.creatingIn === folder.id && (
           <div className="folder-row" style={{ paddingLeft: (depth + 1) * DEPTH_PX }}>

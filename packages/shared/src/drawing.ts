@@ -257,9 +257,7 @@ export function countLiveElements(elements: readonly ExcalidrawElement[]): numbe
  * @param appState - Full editor state as emitted by Excalidraw's `onChange`.
  * @returns A compact object containing only persistable keys.
  */
-export function pickExportAppState(
-  appState: Record<string, unknown>,
-): Record<string, unknown> {
+export function pickExportAppState(appState: Record<string, unknown>): Record<string, unknown> {
   const picked: Record<string, unknown> = {};
   for (const key of EXPORT_APP_STATE_KEYS) {
     if (appState[key] !== undefined) {

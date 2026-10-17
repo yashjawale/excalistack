@@ -7,8 +7,9 @@ const THUMBNAIL_WIDTH = 320;
 
 /** Render a stored scene to a small PNG without mounting the editor. */
 export async function generateThumbnail(drawing: StoredDrawing): Promise<string | null> {
-  const elements = normalizeSceneElements(drawing.scene.elements)
-    .filter((element) => !(element as { isDeleted?: boolean }).isDeleted);
+  const elements = normalizeSceneElements(drawing.scene.elements).filter(
+    (element) => !(element as { isDeleted?: boolean }).isDeleted,
+  );
   if (elements.length === 0) return null;
 
   const blob = await exportToBlob({

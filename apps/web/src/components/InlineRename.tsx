@@ -88,7 +88,7 @@ export function InlineRename(props: InlineRenameProps): ReactElement {
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-          startEditing();
+            startEditing();
           }
         }}
       >

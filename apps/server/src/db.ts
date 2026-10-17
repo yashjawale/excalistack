@@ -21,10 +21,7 @@ export const DEFAULT_FOLDER_NAME = "Drafts";
  * @param filename - Database file name override; defaults to {@link DB_FILENAME}.
  * @returns An open connection with WAL journalling enabled.
  */
-export function openDatabase(
-  dataDir: string,
-  filename: string = DB_FILENAME,
-): Database.Database {
+export function openDatabase(dataDir: string, filename: string = DB_FILENAME): Database.Database {
   if (dataDir === IN_MEMORY_DB) {
     return migrate(new Database(IN_MEMORY_DB));
   }
@@ -87,9 +84,7 @@ function migrate(db: Database.Database): Database.Database {
   }
 
   const draftsExists =
-    db
-      .prepare("SELECT 1 FROM folders WHERE name = ?")
-      .get(DEFAULT_FOLDER_NAME) !== undefined;
+    db.prepare("SELECT 1 FROM folders WHERE name = ?").get(DEFAULT_FOLDER_NAME) !== undefined;
   if (!draftsExists) {
     db.prepare("INSERT INTO folders (id, name, created_at) VALUES (?, ?, ?)").run(
       nanoid(),

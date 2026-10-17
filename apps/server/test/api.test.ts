@@ -129,7 +129,9 @@ describe("API", () => {
 
     const deleted = await app.inject({ method: "DELETE", url: `/api/drawings/${createdBody.id}` });
     expect(deleted.statusCode).toBe(204);
-    expect((await app.inject({ method: "GET", url: `/api/drawings/${createdBody.id}` })).statusCode).toBe(404);
+    expect(
+      (await app.inject({ method: "GET", url: `/api/drawings/${createdBody.id}` })).statusCode,
+    ).toBe(404);
   });
 
   it("answers 404 with JSON for unknown drawing ids", async () => {
@@ -378,7 +380,10 @@ describe("Folders API", () => {
       method: "GET",
       url: `/api/drawings?q=kafka&folderId=${folder.id}`,
     });
-    const names = search.json().drawings.map((d: { name: string }) => d.name).sort();
+    const names = search
+      .json()
+      .drawings.map((d: { name: string }) => d.name)
+      .sort();
     expect(names).toEqual(["Kafka topology", "Random notes"]);
     expect(search.json().query).toBe("kafka");
 

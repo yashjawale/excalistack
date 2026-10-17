@@ -31,7 +31,8 @@ export interface CardMenuProps {
  * insufficient.
  */
 export function CardMenu(props: CardMenuProps): ReactElement {
-  const { open, setOpen, view, setView, popoverStyle, rootRef, triggerRef, popoverRef } = useMenuPopover();
+  const { open, setOpen, view, setView, popoverStyle, rootRef, triggerRef, popoverRef } =
+    useMenuPopover();
 
   return (
     <div ref={rootRef}>

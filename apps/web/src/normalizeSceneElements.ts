@@ -9,12 +9,16 @@ import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
  */
 export function normalizeSceneElements(elements: readonly unknown[]): unknown[] {
   const drawable = elements.filter((element) => {
-    return typeof element === "object" && element !== null && "type" in element
-      && (element as { type: string }).type !== "cameraUpdate";
+    return (
+      typeof element === "object" &&
+      element !== null &&
+      "type" in element &&
+      (element as { type: string }).type !== "cameraUpdate"
+    );
   });
 
-  const hasCompactLabels = drawable.some((element) =>
-    typeof element === "object" && element !== null && "label" in element,
+  const hasCompactLabels = drawable.some(
+    (element) => typeof element === "object" && element !== null && "label" in element,
   );
 
   if (!hasCompactLabels) return drawable;

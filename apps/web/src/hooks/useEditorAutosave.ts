@@ -67,7 +67,8 @@ export function useEditorAutosave(options: UseEditorAutosaveOptions): {
   scheduleSave: (elements: SceneSnapshot["elements"], appState: Record<string, unknown>) => void;
   markLoaded: (drawing: StoredDrawing) => void;
 } {
-  const { apiRef, externalSceneUpdateRef, theme, id, drawing, setDrawing, setStatus, setFlash } = options;
+  const { apiRef, externalSceneUpdateRef, theme, id, drawing, setDrawing, setStatus, setFlash } =
+    options;
   const latestSceneRef = useRef<SceneSnapshot | null>(null);
   const dirtyRef = useRef(false);
   const savingRef = useRef(false);
@@ -78,50 +79,59 @@ export function useEditorAutosave(options: UseEditorAutosaveOptions): {
     knownUpdatedAtRef.current = 0;
   }, [id]);
 
-  const applyRemoteDrawing = useCallback((latest: StoredDrawing, explainConflict = false): void => {
-    knownUpdatedAtRef.current = latest.updatedAt;
-    dirtyRef.current = false;
-    latestSceneRef.current = null;
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    const api = apiRef.current;
-    if (api) {
-      const restored = restore({
-        type: "excalidraw",
-        version: 2,
-        source: "https://github.com/yash/excalistack",
-        elements: normalizeSceneElements(latest.scene.elements),
-        appState: { ...latest.scene.appState, viewBackgroundColor: "#ffffff" },
-        files: latest.files,
-      } as never, null, null);
-      externalSceneUpdateRef.current = true;
-      api.updateScene({
-        elements: restored.elements as never,
-        appState: {
-          ...restored.appState,
-          theme,
-          viewBackgroundColor: "#ffffff",
-        } as never,
-      });
-      api.addFiles(Object.values(restored.files ?? {}) as BinaryFileData[]);
-      window.requestAnimationFrame(() => {
-        api.scrollToContent(restored.elements as never, {
-          fitToViewport: true,
-          viewportZoomFactor: 0.8,
-          animate: false,
+  const applyRemoteDrawing = useCallback(
+    (latest: StoredDrawing, explainConflict = false): void => {
+      knownUpdatedAtRef.current = latest.updatedAt;
+      dirtyRef.current = false;
+      latestSceneRef.current = null;
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      const api = apiRef.current;
+      if (api) {
+        const restored = restore(
+          {
+            type: "excalidraw",
+            version: 2,
+            source: "https://github.com/yash/excalistack",
+            elements: normalizeSceneElements(latest.scene.elements),
+            appState: { ...latest.scene.appState, viewBackgroundColor: "#ffffff" },
+            files: latest.files,
+          } as never,
+          null,
+          null,
+        );
+        externalSceneUpdateRef.current = true;
+        api.updateScene({
+          elements: restored.elements as never,
+          appState: {
+            ...restored.appState,
+            theme,
+            viewBackgroundColor: "#ffffff",
+          } as never,
         });
-        window.setTimeout(() => { externalSceneUpdateRef.current = false; }, 300);
-      });
-    }
-    setDrawing(latest);
-    setStatus({ kind: "saved" });
-    if (explainConflict) {
-      setFlash("Updated from MCP; unsaved local edits were replaced.");
-      window.setTimeout(() => setFlash(null), 4000);
-    }
-  }, [apiRef, externalSceneUpdateRef, setDrawing, setFlash, setStatus, theme]);
+        api.addFiles(Object.values(restored.files ?? {}) as BinaryFileData[]);
+        window.requestAnimationFrame(() => {
+          api.scrollToContent(restored.elements as never, {
+            fitToViewport: true,
+            viewportZoomFactor: 0.8,
+            animate: false,
+          });
+          window.setTimeout(() => {
+            externalSceneUpdateRef.current = false;
+          }, 300);
+        });
+      }
+      setDrawing(latest);
+      setStatus({ kind: "saved" });
+      if (explainConflict) {
+        setFlash("Updated from MCP; unsaved local edits were replaced.");
+        window.setTimeout(() => setFlash(null), 4000);
+      }
+    },
+    [apiRef, externalSceneUpdateRef, setDrawing, setFlash, setStatus, theme],
+  );
 
   const saveNow = useCallback(async (): Promise<void> => {
     const snapshot = latestSceneRef.current;
@@ -137,14 +147,18 @@ export function useEditorAutosave(options: UseEditorAutosaveOptions): {
         return;
       }
       const thumbnail = await generateThumbnail(snapshot.elements, snapshot.files);
-      const updated = await updateDrawing(id, {
-        scene: {
-          elements: snapshot.elements as StoredDrawing["scene"]["elements"],
-          appState: pickExportAppState(snapshot.appState),
+      const updated = await updateDrawing(
+        id,
+        {
+          scene: {
+            elements: snapshot.elements as StoredDrawing["scene"]["elements"],
+            appState: pickExportAppState(snapshot.appState),
+          },
+          files: snapshot.files as StoredDrawing["files"],
+          thumbnail,
         },
-        files: snapshot.files as StoredDrawing["files"],
-        thumbnail,
-      }, expectedUpdatedAt);
+        expectedUpdatedAt,
+      );
       knownUpdatedAtRef.current = updated.updatedAt;
       setDrawing(updated);
       setStatus({ kind: "saved" });
@@ -164,30 +178,32 @@ export function useEditorAutosave(options: UseEditorAutosaveOptions): {
     }
   }, [applyRemoteDrawing, id, setDrawing, setStatus]);
 
-  const scheduleSave = useCallback((
-    elements: SceneSnapshot["elements"],
-    appState: Record<string, unknown>,
-  ): void => {
-    const api = apiRef.current;
-    if (!api) return;
-    latestSceneRef.current = { elements, appState, files: api.getFiles() };
-    dirtyRef.current = true;
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
-      void saveNow();
-    }, AUTOSAVE_DEBOUNCE_MS);
-  }, [apiRef, saveNow]);
+  const scheduleSave = useCallback(
+    (elements: SceneSnapshot["elements"], appState: Record<string, unknown>): void => {
+      const api = apiRef.current;
+      if (!api) return;
+      latestSceneRef.current = { elements, appState, files: api.getFiles() };
+      dirtyRef.current = true;
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
+        void saveNow();
+      }, AUTOSAVE_DEBOUNCE_MS);
+    },
+    [apiRef, saveNow],
+  );
 
   useEffect(() => {
     if (!drawing) return;
     let cancelled = false;
     const timer = window.setInterval(() => {
       if (dirtyRef.current || savingRef.current) return;
-      void getDrawing(id).then((latest) => {
-        if (cancelled || latest.updatedAt <= knownUpdatedAtRef.current) return;
-        applyRemoteDrawing(latest);
-      }).catch(() => {});
+      void getDrawing(id)
+        .then((latest) => {
+          if (cancelled || latest.updatedAt <= knownUpdatedAtRef.current) return;
+          applyRemoteDrawing(latest);
+        })
+        .catch(() => {});
     }, 2000);
     return () => {
       cancelled = true;
@@ -195,10 +211,13 @@ export function useEditorAutosave(options: UseEditorAutosaveOptions): {
     };
   }, [applyRemoteDrawing, drawing, id]);
 
-  useEffect(() => () => {
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    void saveNow();
-  }, [saveNow]);
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      void saveNow();
+    },
+    [saveNow],
+  );
 
   const markLoaded = useCallback((loaded: StoredDrawing): void => {
     knownUpdatedAtRef.current = loaded.updatedAt;

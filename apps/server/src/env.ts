@@ -41,8 +41,7 @@ export const DEFAULT_PORT = 3000;
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const port = Number.parseInt(env["PORT"] ?? "", 10);
   const dataDir = env["DATA_DIR"] ?? path.resolve("data");
-  const webDistDir =
-    env["WEB_DIST_DIR"] ?? path.resolve(import.meta.dirname, "../../web/dist");
+  const webDistDir = env["WEB_DIST_DIR"] ?? path.resolve(import.meta.dirname, "../../web/dist");
 
   return {
     host: env["HOST"] ?? "0.0.0.0",

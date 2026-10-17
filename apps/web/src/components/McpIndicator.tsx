@@ -30,9 +30,9 @@ export function McpIndicator(): ReactElement | null {
 
   if (!checked || !status?.enabled) return null;
 
-  const active = status.activeRequests > 0 || (
-    status.lastRequestAt !== null && Date.now() - status.lastRequestAt < RECENT_ACTIVITY_MS
-  );
+  const active =
+    status.activeRequests > 0 ||
+    (status.lastRequestAt !== null && Date.now() - status.lastRequestAt < RECENT_ACTIVITY_MS);
   const label = active ? "MCP active" : "MCP ready";
 
   return (

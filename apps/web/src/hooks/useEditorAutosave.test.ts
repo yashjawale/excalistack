@@ -87,7 +87,9 @@ describe("useEditorAutosave", () => {
     });
 
     expect(options.setDrawing).toHaveBeenCalledWith(remote);
-    expect(options.setFlash).toHaveBeenCalledWith("Updated from MCP; unsaved local edits were replaced.");
+    expect(options.setFlash).toHaveBeenCalledWith(
+      "Updated from MCP; unsaved local edits were replaced.",
+    );
     expect(api.updateDrawing).not.toHaveBeenCalled();
     unmount();
   });

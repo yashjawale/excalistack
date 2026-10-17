@@ -4,21 +4,21 @@ The Fastify server exposes the REST API under `/api`. Unless noted, request and 
 
 ## Endpoints
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/health` | Liveness check (`{ "ok": true }`). |
-| `GET` | `/api/mcp/status` | Optional MCP status and request activity; available only when MCP is enabled. |
-| `GET` | `/api/drawings` | List summaries, most recently updated first. |
-| `POST` | `/api/drawings` | Create a drawing or import a native `.excalidraw` document. |
-| `GET` | `/api/drawings/:id` | Fetch full drawing, including scene and embedded files. |
-| `PUT` | `/api/drawings/:id` | Replace scene, files, and/or thumbnail. Requires an optimistic-concurrency header. |
-| `PATCH` | `/api/drawings/:id` | Rename and/or move a drawing. |
-| `DELETE` | `/api/drawings/:id` | Permanently delete a drawing. |
-| `GET` | `/api/drawings/:id/export` | Download as a native `.excalidraw` document. |
-| `GET` | `/api/folders` | List folders with drawing counts. |
-| `POST` | `/api/folders` | Create a folder, optionally nested. |
-| `PATCH` | `/api/folders/:id` | Rename and/or move a folder. |
-| `DELETE` | `/api/folders/:id` | Delete a folder subtree; its drawings move to Drafts. |
+| Method   | Path                       | Description                                                                        |
+| -------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| `GET`    | `/api/health`              | Liveness check (`{ "ok": true }`).                                                 |
+| `GET`    | `/api/mcp/status`          | Optional MCP status and request activity; available only when MCP is enabled.      |
+| `GET`    | `/api/drawings`            | List summaries, most recently updated first.                                       |
+| `POST`   | `/api/drawings`            | Create a drawing or import a native `.excalidraw` document.                        |
+| `GET`    | `/api/drawings/:id`        | Fetch full drawing, including scene and embedded files.                            |
+| `PUT`    | `/api/drawings/:id`        | Replace scene, files, and/or thumbnail. Requires an optimistic-concurrency header. |
+| `PATCH`  | `/api/drawings/:id`        | Rename and/or move a drawing.                                                      |
+| `DELETE` | `/api/drawings/:id`        | Permanently delete a drawing.                                                      |
+| `GET`    | `/api/drawings/:id/export` | Download as a native `.excalidraw` document.                                       |
+| `GET`    | `/api/folders`             | List folders with drawing counts.                                                  |
+| `POST`   | `/api/folders`             | Create a folder, optionally nested.                                                |
+| `PATCH`  | `/api/folders/:id`         | Rename and/or move a folder.                                                       |
+| `DELETE` | `/api/folders/:id`         | Delete a folder subtree; its drawings move to Drafts.                              |
 
 ## Drawings
 

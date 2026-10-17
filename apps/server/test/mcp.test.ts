@@ -10,10 +10,7 @@ import { registerExcalistackTools } from "../src/mcp/tools.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const vendorDist = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../src/mcp/vendor",
-);
+const vendorDist = path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/mcp/vendor");
 
 /**
  * Creates a paired client/server with both official and excalistack
@@ -58,7 +55,10 @@ describe("MCP integration", () => {
   it("supports folder creation, rename, move, and deletion through MCP", async () => {
     const db = openDatabase(IN_MEMORY_DB);
     const { client } = await createConnectedClient(db);
-    const created = await client.callTool({ name: "create_folder", arguments: { name: "Projects" } });
+    const created = await client.callTool({
+      name: "create_folder",
+      arguments: { name: "Projects" },
+    });
     expect(created.isError).toBeFalsy();
     const folder = (created.structuredContent as { folder: { id: string } }).folder;
     const updated = await client.callTool({
@@ -69,7 +69,9 @@ describe("MCP integration", () => {
     expect((updated.structuredContent as { folder: { name: string } }).folder.name).toBe("Archive");
     const deleted = await client.callTool({ name: "delete_folder", arguments: { id: folder.id } });
     expect(deleted.isError).toBeFalsy();
-    expect((await client.callTool({ name: "list_folders", arguments: {} })).content?.[0]).toMatchObject({
+    expect(
+      (await client.callTool({ name: "list_folders", arguments: {} })).content?.[0],
+    ).toMatchObject({
       text: expect.not.stringContaining("Archive"),
     });
   });
@@ -99,7 +101,10 @@ describe("MCP integration", () => {
     const listed = await client.callTool({ name: "list_drawings", arguments: {} });
     expect((listed.content as { text: string }[])[0]!.text).toContain("MCP Test");
 
-    const searched = await client.callTool({ name: "search_drawings", arguments: { q: "MCP Test" } });
+    const searched = await client.callTool({
+      name: "search_drawings",
+      arguments: { q: "MCP Test" },
+    });
     expect((searched.content as { text: string }[])[0]!.text).toContain("MCP Test");
 
     const folders = await client.callTool({ name: "list_folders", arguments: {} });

@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  Excalidraw,
-  restore,
-} from "@excalidraw/excalidraw";
+import { Excalidraw, restore } from "@excalidraw/excalidraw";
 // Component styles for the canvas; loaded only on editor pages so the
 // dashboard does not pull in the excalidraw stylesheet.
 import "@excalidraw/excalidraw/index.css";
@@ -47,14 +44,18 @@ export function EditorPage(): ReactElement {
   // scenes pulled into an already-open editor.
   const initialData = useMemo(() => {
     if (!drawing) return null;
-    const restored = restore({
-      type: "excalidraw",
-      version: 2,
-      source: "https://github.com/yash/excalistack",
-      elements: normalizeSceneElements(drawing.scene.elements),
-      appState: { ...drawing.scene.appState, viewBackgroundColor: "#ffffff" },
-      files: drawing.files,
-    } as never, null, null);
+    const restored = restore(
+      {
+        type: "excalidraw",
+        version: 2,
+        source: "https://github.com/yash/excalistack",
+        elements: normalizeSceneElements(drawing.scene.elements),
+        appState: { ...drawing.scene.appState, viewBackgroundColor: "#ffffff" },
+        files: drawing.files,
+      } as never,
+      null,
+      null,
+    );
     return {
       elements: restored.elements,
       appState: {
@@ -121,25 +122,29 @@ export function EditorPage(): ReactElement {
       event.preventDefault();
       const file = event.dataTransfer?.files?.[0];
       if (!file || !/\.(excalidraw|json|excalidrawplus)$/i.test(file.name)) return;
-        void file.text().then(async (text) => {
-          try {
-            const parsed = ExcalidrawDocumentSchema.safeParse(JSON.parse(text));
-            if (!parsed.success) throw new Error("Not a valid .excalidraw document");
-            const restored = restore({
+      void file.text().then(async (text) => {
+        try {
+          const parsed = ExcalidrawDocumentSchema.safeParse(JSON.parse(text));
+          if (!parsed.success) throw new Error("Not a valid .excalidraw document");
+          const restored = restore(
+            {
               ...parsed.data,
               elements: normalizeSceneElements(parsed.data.elements),
-            } as never, null, null);
-            const api = apiRef.current;
-            if (!api) return;
-            api.updateScene({ elements: restored.elements as never });
-            api.addFiles(Object.values(restored.files ?? {}) as BinaryFileData[]);
-            setFlash(`Imported "${file.name}"`);
-            window.setTimeout(() => setFlash(null), 2500);
-          } catch (cause) {
-            setFlash(cause instanceof Error ? cause.message : String(cause));
-            window.setTimeout(() => setFlash(null), 3500);
-          }
-        });
+            } as never,
+            null,
+            null,
+          );
+          const api = apiRef.current;
+          if (!api) return;
+          api.updateScene({ elements: restored.elements as never });
+          api.addFiles(Object.values(restored.files ?? {}) as BinaryFileData[]);
+          setFlash(`Imported "${file.name}"`);
+          window.setTimeout(() => setFlash(null), 2500);
+        } catch (cause) {
+          setFlash(cause instanceof Error ? cause.message : String(cause));
+          window.setTimeout(() => setFlash(null), 3500);
+        }
+      });
     };
 
     container.addEventListener("dragover", prevent);
@@ -176,7 +181,12 @@ export function EditorPage(): ReactElement {
   return (
     <div className="editor-layout">
       <header className="editor-topbar">
-        <Link className="editor-back-button" to="/" aria-label="Back to all drawings" title="Back to all drawings">
+        <Link
+          className="editor-back-button"
+          to="/"
+          aria-label="Back to all drawings"
+          title="Back to all drawings"
+        >
           <svg
             width="20"
             height="20"
@@ -202,9 +212,7 @@ export function EditorPage(): ReactElement {
             inputClassName="editor-title-input"
           />
         ) : (
-          <span className="editor-title">
-            {status.kind === "loading" ? "Loading…" : "…"}
-          </span>
+          <span className="editor-title">{status.kind === "loading" ? "Loading…" : "…"}</span>
         )}
         <div className="editor-right-controls">
           {(status.kind === "saving" || status.kind === "saved") && (

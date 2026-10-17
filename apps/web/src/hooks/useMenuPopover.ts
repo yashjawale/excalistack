@@ -36,7 +36,10 @@ export function useMenuPopover(openRequest?: number) {
     const top = fitsBelow ? belowTop : trigger.top - popover.height - POPOVER_GAP_PX;
     const left = Math.max(
       VIEWPORT_PADDING_PX,
-      Math.min(trigger.right - popover.width, window.innerWidth - popover.width - VIEWPORT_PADDING_PX),
+      Math.min(
+        trigger.right - popover.width,
+        window.innerWidth - popover.width - VIEWPORT_PADDING_PX,
+      ),
     );
     setPopoverStyle({ top, left, visibility: "visible" });
   }, [open, view]);

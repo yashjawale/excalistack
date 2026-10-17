@@ -78,9 +78,9 @@ export function Dashboard(): ReactElement {
           const thumbnail = await generateThumbnail(drawing);
           if (!thumbnail) return;
           await updateDrawing(summary.id, { thumbnail }, drawing.updatedAt);
-          setDrawings((current) => current.map((item) =>
-            item.id === summary.id ? { ...item, thumbnail } : item,
-          ));
+          setDrawings((current) =>
+            current.map((item) => (item.id === summary.id ? { ...item, thumbnail } : item)),
+          );
         } catch {
           // One best-effort attempt per drawing per dashboard page load.
         }
@@ -173,7 +173,8 @@ export function Dashboard(): ReactElement {
         if (cancelled) return;
         const stored = localStorage.getItem(FOLDER_STORAGE_KEY);
         const drafts = fresh.find((folder) => folder.name === DEFAULT_FOLDER_NAME) ?? fresh[0];
-        const active = stored && fresh.some((folder) => folder.id === stored) ? stored : drafts?.id ?? null;
+        const active =
+          stored && fresh.some((folder) => folder.id === stored) ? stored : (drafts?.id ?? null);
         setActiveFolderId(active);
         if (active) {
           localStorage.setItem(FOLDER_STORAGE_KEY, active);
@@ -201,7 +202,10 @@ export function Dashboard(): ReactElement {
       try {
         const [folderResponse, drawingResponse] = await Promise.all([
           listFolders(),
-          listDrawings(isSearching ? undefined : activeFolderId, isSearching ? searchInput : undefined),
+          listDrawings(
+            isSearching ? undefined : activeFolderId,
+            isSearching ? searchInput : undefined,
+          ),
         ]);
         if (cancelled) return;
         setFolders(folderResponse.folders);
@@ -285,7 +289,10 @@ export function Dashboard(): ReactElement {
    * @param folder - Folder to move.
    * @param parentId - New parent (`null` = root).
    */
-  const handleMoveFolder = async (folder: FolderSummary, parentId: string | null): Promise<void> => {
+  const handleMoveFolder = async (
+    folder: FolderSummary,
+    parentId: string | null,
+  ): Promise<void> => {
     try {
       await moveFolder(folder.id, parentId);
       await refreshFolders();
@@ -596,7 +603,16 @@ export function Dashboard(): ReactElement {
             aria-label="Close folder navigation"
             onClick={() => setMobileSidebarOpen(false)}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
               <path d="m6 6 12 12M18 6 6 18" />
             </svg>
           </button>
@@ -674,7 +690,16 @@ export function Dashboard(): ReactElement {
             aria-controls="dashboard-sidebar"
             onClick={() => setMobileSidebarOpen(true)}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
               <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -685,7 +710,9 @@ export function Dashboard(): ReactElement {
               </>
             ) : (
               <>
-                {loading ? "…" : activeFolder?.name === DEFAULT_FOLDER_NAME ? (
+                {loading ? (
+                  "…"
+                ) : activeFolder?.name === DEFAULT_FOLDER_NAME ? (
                   activeFolder.name
                 ) : activeFolder ? (
                   <InlineRename
@@ -699,7 +726,9 @@ export function Dashboard(): ReactElement {
                     ariaLabel="Folder name"
                     matchDisplayWidth
                   />
-                ) : "…"}{" "}
+                ) : (
+                  "…"
+                )}{" "}
                 <span className="muted">({drawings.length})</span>
               </>
             )}
@@ -726,7 +755,16 @@ export function Dashboard(): ReactElement {
                   aria-label="Clear search"
                   onClick={() => setSearchInput("")}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
                     <path d="M6 6l12 12M18 6 6 18" />
                   </svg>
                 </button>
@@ -790,8 +828,8 @@ export function Dashboard(): ReactElement {
           <div className="empty-state">
             <p>Nothing in "{activeFolder?.name}" yet.</p>
             <p className="muted">
-              Create a drawing or drop an <code>.excalidraw</code> file here — everything is
-              stored on the server, not in your browser.
+              Create a drawing or drop an <code>.excalidraw</code> file here — everything is stored
+              on the server, not in your browser.
             </p>
           </div>
         ) : (

@@ -22,7 +22,13 @@ export function registerDrawingTools(server: McpServer, store: DrawingStore): vo
         "Lists stored drawings (summaries without scene content), most recently updated first. Use get_drawing to fetch the full scene, then create_view to render it in chat.",
       inputSchema: {
         folderId: z.string().optional().describe("Folder to scope the listing to"),
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe(`Maximum drawings to return (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_LIMIT)
+          .optional()
+          .describe(`Maximum drawings to return (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`),
       },
       annotations: { readOnlyHint: true },
     },
@@ -42,7 +48,13 @@ export function registerDrawingTools(server: McpServer, store: DrawingStore): vo
         "Searches stored drawings globally by name and scene text content (case-insensitive). Returns matching summaries; use get_drawing + create_view to preview.",
       inputSchema: {
         q: z.string().min(1).describe("Search term"),
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe(`Maximum results (default ${DEFAULT_LIMIT})`),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_LIMIT)
+          .optional()
+          .describe(`Maximum results (default ${DEFAULT_LIMIT})`),
       },
       annotations: { readOnlyHint: true },
     },
@@ -72,7 +84,12 @@ export function registerDrawingTools(server: McpServer, store: DrawingStore): vo
       const json = JSON.stringify(document);
       return {
         content: [{ type: "text", text: json }],
-        structuredContent: { id: drawing.id, name: drawing.name, folderId: drawing.folderId, document },
+        structuredContent: {
+          id: drawing.id,
+          name: drawing.name,
+          folderId: drawing.folderId,
+          document,
+        },
       };
     },
   );
@@ -87,12 +104,34 @@ export function registerDrawingTools(server: McpServer, store: DrawingStore): vo
 - To persist a diagram shown via create_view: first read the checkpoint (if the user edited fullscreen, read_widget_context or read_checkpoint reflects it), then save those elements via this tool.
 Never send binary blobs; elements is always a JSON string.`,
       inputSchema: {
-        id: z.string().optional().describe("Existing drawing id to update; omit to create a new drawing"),
-        name: z.string().trim().min(1).max(200).optional().describe("Display name (required when creating)"),
-        elements: z.string().describe("JSON array string of Excalidraw elements. Call read_me for format reference. Must be valid JSON."),
-        folderId: z.string().optional().describe("Folder to place the drawing in; defaults to Drafts when creating"),
-        appState: z.record(z.string(), z.unknown()).optional().describe("Persisted view/export state subset"),
-        files: z.record(z.string(), z.unknown()).optional().describe("Embedded binary assets keyed by id"),
+        id: z
+          .string()
+          .optional()
+          .describe("Existing drawing id to update; omit to create a new drawing"),
+        name: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe("Display name (required when creating)"),
+        elements: z
+          .string()
+          .describe(
+            "JSON array string of Excalidraw elements. Call read_me for format reference. Must be valid JSON.",
+          ),
+        folderId: z
+          .string()
+          .optional()
+          .describe("Folder to place the drawing in; defaults to Drafts when creating"),
+        appState: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe("Persisted view/export state subset"),
+        files: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe("Embedded binary assets keyed by id"),
       },
     },
     async ({ id, name, elements, folderId, appState, files }): Promise<CallToolResult> => {
@@ -100,10 +139,18 @@ Never send binary blobs; elements is always a JSON string.`,
       try {
         parsed = JSON.parse(elements);
       } catch (error) {
-        return { content: [{ type: "text", text: `Invalid JSON in elements: ${(error as Error).message}` }], isError: true };
+        return {
+          content: [
+            { type: "text", text: `Invalid JSON in elements: ${(error as Error).message}` },
+          ],
+          isError: true,
+        };
       }
       if (!Array.isArray(parsed)) {
-        return { content: [{ type: "text", text: "elements must be a JSON array" }], isError: true };
+        return {
+          content: [{ type: "text", text: "elements must be a JSON array" }],
+          isError: true,
+        };
       }
 
       // Validate elements are at least objects with id/type where applicable — reuse shared schemas loosely.
@@ -118,7 +165,12 @@ Never send binary blobs; elements is always a JSON string.`,
         files: (files as never) ?? {},
       });
       if (!createInput.success) {
-        return { content: [{ type: "text", text: `Invalid input: ${createInput.error.issues[0]?.message}` }], isError: true };
+        return {
+          content: [
+            { type: "text", text: `Invalid input: ${createInput.error.issues[0]?.message}` },
+          ],
+          isError: true,
+        };
       }
 
       if (id) {
@@ -127,10 +179,17 @@ Never send binary blobs; elements is always a JSON string.`,
           return { content: [{ type: "text", text: `Drawing "${id}" not found` }], isError: true };
         }
         if (folderId && !store.listFolders().some((f) => f.id === folderId)) {
-          return { content: [{ type: "text", text: `Folder "${folderId}" not found` }], isError: true };
+          return {
+            content: [{ type: "text", text: `Folder "${folderId}" not found` }],
+            isError: true,
+          };
         }
         // Replace content via update, rename if name differs, move if folderId differs.
-        const updated = store.update(id, { scene, files: createInput.data.files as never, thumbnail: null });
+        const updated = store.update(id, {
+          scene,
+          files: createInput.data.files as never,
+          thumbnail: null,
+        });
         let summary: unknown = updated;
         if (name && name !== existing.name) {
           summary = store.rename(id, name);
@@ -140,20 +199,36 @@ Never send binary blobs; elements is always a JSON string.`,
         }
         const final = store.get(id)!;
         return {
-          content: [{ type: "text", text: `Saved drawing "${final.name}" (${final.id}) in folder ${final.folderId}` }],
+          content: [
+            {
+              type: "text",
+              text: `Saved drawing "${final.name}" (${final.id}) in folder ${final.folderId}`,
+            },
+          ],
           structuredContent: { id: final.id, name: final.name, folderId: final.folderId },
         };
       }
 
       if (!name) {
-        return { content: [{ type: "text", text: "name is required when creating a new drawing" }], isError: true };
+        return {
+          content: [{ type: "text", text: "name is required when creating a new drawing" }],
+          isError: true,
+        };
       }
       if (folderId && !store.listFolders().some((f) => f.id === folderId)) {
-        return { content: [{ type: "text", text: `Folder "${folderId}" not found` }], isError: true };
+        return {
+          content: [{ type: "text", text: `Folder "${folderId}" not found` }],
+          isError: true,
+        };
       }
       const created = store.create(createInput.data);
       return {
-        content: [{ type: "text", text: `Created drawing "${created.name}" (${created.id}) in folder ${created.folderId}` }],
+        content: [
+          {
+            type: "text",
+            text: `Created drawing "${created.name}" (${created.id}) in folder ${created.folderId}`,
+          },
+        ],
         structuredContent: { id: created.id, name: created.name, folderId: created.folderId },
       };
     },
@@ -172,5 +247,4 @@ Never send binary blobs; elements is always a JSON string.`,
       return { content: [{ type: "text", text: `Deleted drawing ${id}` }] };
     },
   );
-
 }
