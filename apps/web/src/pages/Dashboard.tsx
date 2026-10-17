@@ -17,13 +17,12 @@ import {
 } from "../api";
 import type { DrawingSummary, FolderSummary } from "@excalistack/shared";
 import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
-import { CardMenu } from "../components/CardMenu";
+import { DrawingCard } from "../components/DrawingCard";
 import { FolderTree } from "../components/FolderTree";
 import { InlineRename } from "../components/InlineRename";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
 import { McpIndicator } from "../components/McpIndicator";
 import { ImportIcon, PlusIcon, SearchIcon } from "../components/Icons";
-import { formatTimestamp } from "../utils";
 
 /** localStorage key persisting the selected folder across reloads. */
 const FOLDER_STORAGE_KEY = "excalistack-folder";
@@ -559,64 +558,6 @@ export function Dashboard(): ReactElement {
     setBusy(false);
   };
 
-  /**
-   * Renders one drawing card. In search mode the meta line includes the
-   * owning folder name, since results span folders.
-   *
-   * @param drawing - Drawing to render.
-   * @param showFolder - Whether to prefix the meta line with the folder.
-   * @returns The card element.
-   */
-  const renderCard = (drawing: DrawingSummary, showFolder: boolean): ReactElement => (
-    <li
-      key={drawing.id}
-      className="card"
-      draggable={!busy}
-      onDragStart={(event) => handleCardDragStart(event, drawing)}
-    >
-      <CardMenu
-        downloadUrl={`/api/drawings/${encodeURIComponent(drawing.id)}/export`}
-        folders={folders}
-        currentFolderId={drawing.folderId}
-        onRename={() => handleRename(drawing)}
-        onDelete={() => void handleDelete(drawing)}
-        onMove={(folderId) => void handleMove(drawing, folderId)}
-      />
-      <a
-        className="card-thumb-link"
-        href={`/d/${drawing.id}`}
-        onClick={(event) => {
-          event.preventDefault();
-          navigate(`/d/${drawing.id}`);
-        }}
-      >
-        {drawing.thumbnail ? (
-          <img className="card-thumb" src={drawing.thumbnail} alt="" />
-        ) : (
-          <div className="card-thumb card-thumb-empty" aria-hidden="true">
-            empty
-          </div>
-        )}
-      </a>
-      <div className="card-body">
-        <InlineRename
-          value={drawing.name}
-          editing={renamingDrawingId === drawing.id}
-          onStart={() => handleRename(drawing)}
-          onCommit={(name) => void handleRenameCommit(drawing, name)}
-          onCancel={() => setRenamingDrawingId(null)}
-          className="card-name"
-          inputClassName="card-name-input"
-        />
-        <span className="card-meta">
-          {showFolder && `${folderNameById.get(drawing.folderId) ?? "—"} · `}
-          {drawing.elementCount} element{drawing.elementCount === 1 ? "" : "s"} ·{" "}
-          {formatTimestamp(drawing.updatedAt)}
-        </span>
-      </div>
-    </li>
-  );
-
   return (
     <div className="shell">
       <aside
@@ -822,7 +763,23 @@ export function Dashboard(): ReactElement {
             </div>
           ) : (
             <ul className="grid">
-              {visibleDrawings.map((drawing) => renderCard(drawing, true))}
+              {visibleDrawings.map((drawing) => (
+                <DrawingCard
+                  key={drawing.id}
+                  drawing={drawing}
+                  folders={folders}
+                  folderName={folderNameById.get(drawing.folderId) ?? "—"}
+                  busy={busy}
+                  renaming={renamingDrawingId === drawing.id}
+                  onOpen={(item) => navigate(`/d/${item.id}`)}
+                  onDragStart={handleCardDragStart}
+                  onRename={handleRename}
+                  onRenameCommit={(item, name) => void handleRenameCommit(item, name)}
+                  onRenameCancel={() => setRenamingDrawingId(null)}
+                  onDelete={(item) => void handleDelete(item)}
+                  onMove={(item, folderId) => void handleMove(item, folderId)}
+                />
+              ))}
             </ul>
           )
         ) : loading || loadingDrawings ? (
@@ -839,7 +796,22 @@ export function Dashboard(): ReactElement {
           </div>
         ) : (
           <ul className="grid">
-            {drawings.map((drawing) => renderCard(drawing, false))}
+            {drawings.map((drawing) => (
+              <DrawingCard
+                key={drawing.id}
+                drawing={drawing}
+                folders={folders}
+                busy={busy}
+                renaming={renamingDrawingId === drawing.id}
+                onOpen={(item) => navigate(`/d/${item.id}`)}
+                onDragStart={handleCardDragStart}
+                onRename={handleRename}
+                onRenameCommit={(item, name) => void handleRenameCommit(item, name)}
+                onRenameCancel={() => setRenamingDrawingId(null)}
+                onDelete={(item) => void handleDelete(item)}
+                onMove={(item, folderId) => void handleMove(item, folderId)}
+              />
+            ))}
           </ul>
         )}
 
