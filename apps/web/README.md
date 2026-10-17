@@ -26,6 +26,7 @@ Run from the repository root with `pnpm --filter @excalistack/web <script>`:
 
 - `dev` — start the Vite development server
 - `build` — create the production bundle in `dist/`
+- `test` — run dashboard and editor lifecycle tests
 - `typecheck` — run TypeScript without emitting files
 
 The server can host the production bundle when built; see the repository [README](../../README.md) for full deployment and configuration instructions.

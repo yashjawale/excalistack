@@ -12,7 +12,7 @@
     "dev:server": "pnpm --filter @excalistack/shared build && pnpm --filter @excalistack/server dev",
     "dev:web": "pnpm --filter @excalistack/web dev",
     "start": "pnpm --filter @excalistack/server start",
-    "test": "pnpm --filter @excalistack/server test",
+    "test": "pnpm --filter @excalistack/server test && pnpm --filter @excalistack/web test",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

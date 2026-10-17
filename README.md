@@ -46,7 +46,7 @@ Requires Node.js ≥ 22 and pnpm (via corepack).
 ```shell
 pnpm install
 pnpm build          # build shared → server → web
-pnpm test           # vitest suite (server)
+pnpm test           # server and web Vitest suites
 pnpm typecheck      # tsc --noEmit across the workspace
 
 pnpm dev:server     # API on :3000 (serves the built SPA if present)
