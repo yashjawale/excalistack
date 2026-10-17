@@ -2,7 +2,9 @@
 
 # Excalistack
 
-[![CI](https://github.com/yash/excalistack/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yash/excalistack/actions/workflows/ci.yml)
+[![Static checks](https://github.com/yashjawale/excalistack/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yashjawale/excalistack/actions/workflows/ci.yml)
+[![Tests](https://github.com/yashjawale/excalistack/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/yashjawale/excalistack/actions/workflows/tests.yml)
+[![Latest release](https://img.shields.io/github/v/release/yashjawale/excalistack)](https://github.com/yashjawale/excalistack/releases/latest)
 ![Node.js 22+](https://img.shields.io/badge/Node.js-%E2%89%A522-339933?logo=node.js&logoColor=white)
 
 Self-hosted Excalidraw library for storing, organizing, and editing multiple drawings on your server. It keeps drawings in SQLite and supports native `.excalidraw` import and export.
@@ -17,6 +19,8 @@ Self-hosted Excalidraw library for storing, organizing, and editing multiple dra
 
 > Excalistack is **not a replacement for [Excalidraw+](https://plus.excalidraw.com/)**. It focuses on providing a self-hosted way to work with multiple drawings. For collaboration and more, check out Excalidraw+. If you find Excalidraw useful, please consider [supporting the original project](https://github.com/sponsors/excalidraw).
 
+> Like what you see? Consider starring the repository 🌟
+
 ## Quick start
 
 With Docker Compose (builds the image from this checkout):
@@ -27,14 +31,36 @@ docker compose up -d
 
 Open <http://localhost:3000>.
 
-To run a prebuilt image instead:
+To run the prebuilt image from GHCR:
+
+```shell
+docker pull ghcr.io/yashjawale/excalistack:latest
+```
+
+Use this Compose file to run it:
+
+```yaml
+services:
+  excalistack:
+    image: ghcr.io/yashjawale/excalistack:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - excalistack_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  excalistack_data:
+```
+
+Save it as `compose.yml` and run `docker compose up -d`. Alternatively, start it with Docker:
 
 ```shell
 docker run -d \
   --name excalistack \
   -p 3000:3000 \
   -v excalistack_data:/app/data \
-  ghcr.io/yash/excalistack:latest
+  ghcr.io/yashjawale/excalistack:latest
 ```
 
 ## Image configuration
@@ -112,3 +138,7 @@ The endpoint currently has no authentication; keep it local or protect it before
 ## More information
 
 Browse the [documentation index](docs/README.md), including [architecture](docs/architecture.md) and [REST API](docs/api.md) references.
+
+---
+
+<a href="https://yashjawale.github.io/" target="_blank"><img style="height: 22px;" src="https://raw.githubusercontent.com/yashjawale/.github/main/docs/logo.svg" alt="Yash Jawale"/></a>
