@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -22,6 +22,7 @@ import { InlineRename } from "../components/InlineRename";
 import { McpIndicator } from "../components/McpIndicator";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
 import { useTheme } from "../theme";
+import { normalizeSceneElements } from "../normalizeSceneElements";
 
 /** Debounce window (ms) applied before an autosave round-trip starts. */
 const AUTOSAVE_DEBOUNCE_MS = 1500;
@@ -110,6 +111,30 @@ export function EditorPage(): ReactElement {
   const [flash, setFlash] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
 
+  // MCP-created scenes can contain minimal but valid elements. Normalize them
+  // through Excalidraw's restore path before initial render, just as we do for
+  // scenes pulled into an already-open editor.
+  const initialData = useMemo(() => {
+    if (!drawing) return null;
+    const restored = restore({
+      type: "excalidraw",
+      version: 2,
+      source: "https://github.com/yash/excalistack",
+      elements: normalizeSceneElements(drawing.scene.elements),
+      appState: { ...drawing.scene.appState, viewBackgroundColor: "#ffffff" },
+      files: drawing.files,
+    } as never, null, null);
+    return {
+      elements: restored.elements,
+      appState: {
+        ...restored.appState,
+        theme,
+        viewBackgroundColor: "#ffffff",
+      },
+      files: restored.files,
+    };
+  }, [drawing, theme]);
+
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const latestSceneRef = useRef<SceneSnapshot | null>(null);
   const dirtyRef = useRef(false);
@@ -142,7 +167,7 @@ export function EditorPage(): ReactElement {
         type: "excalidraw",
         version: 2,
         source: "https://github.com/yash/excalistack",
-        elements: latest.scene.elements,
+        elements: normalizeSceneElements(latest.scene.elements),
         // Excalidraw applies its dark-mode canvas inversion itself. Keep the
         // scene's base canvas white; a dark saved color gets inverted to white
         // and makes dark-colored text appear white-on-white.
@@ -321,7 +346,10 @@ export function EditorPage(): ReactElement {
           try {
             const parsed = ExcalidrawDocumentSchema.safeParse(JSON.parse(text));
             if (!parsed.success) throw new Error("Not a valid .excalidraw document");
-            const restored = restore(parsed.data as never, null, null);
+            const restored = restore({
+              ...parsed.data,
+              elements: normalizeSceneElements(parsed.data.elements),
+            } as never, null, null);
             const api = apiRef.current;
             if (!api) return;
             api.updateScene({ elements: restored.elements as never });
@@ -426,15 +454,7 @@ export function EditorPage(): ReactElement {
             excalidrawAPI={(api) => {
               apiRef.current = api;
             }}
-            initialData={{
-              elements: drawing.scene.elements as never,
-              appState: {
-                ...drawing.scene.appState,
-                theme,
-                viewBackgroundColor: "#ffffff",
-              } as never,
-              files: drawing.files as never,
-            }}
+            initialData={initialData!}
             onChange={(elements, appState) => {
               if (externalSceneUpdateRef.current) return;
               scheduleSave(elements, appState as unknown as Record<string, unknown>);

@@ -1,12 +1,14 @@
 import { exportToBlob } from "@excalidraw/excalidraw";
 import type { AppState } from "@excalidraw/excalidraw/types";
 import type { StoredDrawing } from "@excalistack/shared";
+import { normalizeSceneElements } from "./normalizeSceneElements";
 
 const THUMBNAIL_WIDTH = 320;
 
 /** Render a stored scene to a small PNG without mounting the editor. */
 export async function generateThumbnail(drawing: StoredDrawing): Promise<string | null> {
-  const elements = drawing.scene.elements.filter((element) => !element.isDeleted);
+  const elements = normalizeSceneElements(drawing.scene.elements)
+    .filter((element) => !(element as { isDeleted?: boolean }).isDeleted);
   if (elements.length === 0) return null;
 
   const blob = await exportToBlob({
