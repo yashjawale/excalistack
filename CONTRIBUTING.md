@@ -14,6 +14,13 @@ pnpm dev:web
 
 Use <http://localhost:5173> for the web app; it proxies API requests to the server on port `3000`. See [AGENTS.md](AGENTS.md) for project structure, development details, and repository guidance.
 
+## Tech stack
+
+- **Web:** React, TypeScript, and Vite, with the Excalidraw editor.
+- **Server:** Fastify and TypeScript, with SQLite persistence.
+- **Shared package:** TypeScript domain types and Zod validation schemas used by the web app and server.
+- **Tests and formatting:** Vitest and Prettier.
+
 ## Before submitting changes
 
 - Keep changes focused and follow existing patterns; prefer the simplest solution that addresses the issue.
