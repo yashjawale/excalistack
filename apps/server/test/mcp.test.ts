@@ -50,6 +50,28 @@ describe("MCP integration", () => {
     expect(names).toContain("save_drawing");
     expect(names).toContain("delete_drawing");
     expect(names).toContain("list_folders");
+    expect(names).toContain("create_folder");
+    expect(names).toContain("update_folder");
+    expect(names).toContain("delete_folder");
+  });
+
+  it("supports folder creation, rename, move, and deletion through MCP", async () => {
+    const db = openDatabase(IN_MEMORY_DB);
+    const { client } = await createConnectedClient(db);
+    const created = await client.callTool({ name: "create_folder", arguments: { name: "Projects" } });
+    expect(created.isError).toBeFalsy();
+    const folder = (created.structuredContent as { folder: { id: string } }).folder;
+    const updated = await client.callTool({
+      name: "update_folder",
+      arguments: { id: folder.id, name: "Archive" },
+    });
+    expect(updated.isError).toBeFalsy();
+    expect((updated.structuredContent as { folder: { name: string } }).folder.name).toBe("Archive");
+    const deleted = await client.callTool({ name: "delete_folder", arguments: { id: folder.id } });
+    expect(deleted.isError).toBeFalsy();
+    expect((await client.callTool({ name: "list_folders", arguments: {} })).content?.[0]).toMatchObject({
+      text: expect.not.stringContaining("Archive"),
+    });
   });
 
   it("round-trips save_drawing → get_drawing → search → delete", async () => {

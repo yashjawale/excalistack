@@ -12,6 +12,8 @@ import {
   moveFolder,
   renameOrMoveDrawing,
   renameFolder,
+  getDrawing,
+  updateDrawing,
 } from "../api";
 import type { DrawingSummary, FolderSummary } from "@excalistack/shared";
 import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
@@ -115,9 +117,35 @@ export function Dashboard(): ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
   const fileDragDepth = useRef(0);
+  const thumbnailAttempts = useRef(new Set<string>());
   const [fileDragActive, setFileDragActive] = useState(false);
   const [rootFolderDropActive, setRootFolderDropActive] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Backfill missing previews in the background. This only loads stored scene
+  // data for rendering; it never mounts or navigates to the user's editor.
+  useEffect(() => {
+    const missing = drawings.filter((drawing) => !drawing.thumbnail && drawing.elementCount > 0);
+    for (const summary of missing) {
+      if (thumbnailAttempts.current.has(summary.id)) continue;
+      thumbnailAttempts.current.add(summary.id);
+      void (async (): Promise<void> => {
+        try {
+          const { generateThumbnail } = await import("../thumbnail");
+          const drawing = await getDrawing(summary.id);
+          if (drawing.thumbnail) return;
+          const thumbnail = await generateThumbnail(drawing);
+          if (!thumbnail) return;
+          await updateDrawing(summary.id, { thumbnail }, drawing.updatedAt);
+          setDrawings((current) => current.map((item) =>
+            item.id === summary.id ? { ...item, thumbnail } : item,
+          ));
+        } catch {
+          // One best-effort attempt per drawing per dashboard page load.
+        }
+      })();
+    }
+  }, [drawings]);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
 

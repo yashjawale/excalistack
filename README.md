@@ -150,6 +150,9 @@ docker run -e MCP_ENABLED=true -p 3000:3000 -v excalistack_data:/app/data excali
 | `save_drawing` | excalistack | Create/update — `elements` is a JSON array string; to persist a `create_view`, `read_checkpoint` first if the user edited in fullscreen |
 | `delete_drawing` | excalistack | Permanent delete |
 | `list_folders` | excalistack | With drawing counts |
+| `create_folder` | excalistack | Create at the root or under a parent folder |
+| `update_folder` | excalistack | Rename and/or re-parent a folder |
+| `delete_folder` | excalistack | Delete a folder tree; its drawings move to Drafts |
 
 `save_to_excalistack` is also registered as an app-only widget tool mirroring `export_to_excalidraw` but writing into the library.
 
