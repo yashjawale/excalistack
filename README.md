@@ -7,7 +7,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yashjawale/excalistack)](https://github.com/yashjawale/excalistack/releases/latest)
 ![Node.js 22+](https://img.shields.io/badge/Node.js-%E2%89%A522-339933?logo=node.js&logoColor=white)
 
-Self-hosted Excalidraw library for storing, organizing, and editing multiple drawings on your server. It keeps drawings in SQLite and supports native `.excalidraw` import and export.
+Self-hosted Excalidraw library for storing, organizing, and editing multiple drawings on your server. It keeps drawings in SQLite and supports native `.excalidraw` import and export. Also includes an optional MCP to allow agents to manage your drawings.
 
 ![Excalistack dashboard](screenshots/excalistack-dashboard.png)
 
