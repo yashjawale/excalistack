@@ -9,6 +9,8 @@
 
 Self-hosted Excalidraw library for storing, organizing, and editing multiple drawings on your server. It keeps drawings in SQLite and supports native `.excalidraw` import and export.
 
+![Excalistack dashboard](screenshots/excalistack-dashboard.png)
+
 ## Features
 
 - Multiple drawings with previews, search, and nested folders
