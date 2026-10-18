@@ -18,6 +18,7 @@ import {
 import type { DrawingSummary, FolderSummary } from "@excalistack/shared";
 import { DRAWING_DRAG_MIME, FOLDER_DRAG_MIME } from "../dragDrop";
 import { DrawingCard } from "../components/DrawingCard";
+import { EmptyFolderState } from "../components/EmptyFolderState";
 import { FolderTree } from "../components/FolderTree";
 import { InlineRename } from "../components/InlineRename";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
@@ -825,14 +826,7 @@ export function Dashboard(): ReactElement {
         ) : !activeFolderId ? (
           <p className="muted">No folder selected.</p>
         ) : drawings.length === 0 ? (
-          <div className="empty-state empty-state-folder">
-            <img className="empty-state-image" src="/fallback.svg" alt="" />
-            <p className="empty-state-title">Nothing in "{activeFolder?.name}" yet.</p>
-            <p className="muted">
-              Create a drawing or drop an <code>.excalidraw</code> file here — everything is stored
-              on the server, not in your browser.
-            </p>
-          </div>
+          <EmptyFolderState folderName={activeFolder?.name} />
         ) : (
           <ul className="grid">
             {drawings.map((drawing) => (
