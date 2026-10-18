@@ -7,6 +7,9 @@ import "@fontsource/assistant/400.css";
 import "@fontsource/assistant/500.css";
 import "@fontsource/assistant/600.css";
 import "./styles.css";
+import "./styles/sidebar.css";
+import "./styles/dashboard.css";
+import "./styles/editor.css";
 
 /**
  * Base URL under which Excalidraw's runtime assets (canvas fonts) are
