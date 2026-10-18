@@ -825,8 +825,9 @@ export function Dashboard(): ReactElement {
         ) : !activeFolderId ? (
           <p className="muted">No folder selected.</p>
         ) : drawings.length === 0 ? (
-          <div className="empty-state">
-            <p>Nothing in "{activeFolder?.name}" yet.</p>
+          <div className="empty-state empty-state-folder">
+            <img className="empty-state-image" src="/fallback.svg" alt="" />
+            <p className="empty-state-title">Nothing in "{activeFolder?.name}" yet.</p>
             <p className="muted">
               Create a drawing or drop an <code>.excalidraw</code> file here — everything is stored
               on the server, not in your browser.

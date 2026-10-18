@@ -656,6 +656,38 @@ code {
   margin: 6px 0;
 }
 
+.empty-state-image {
+  display: block;
+  width: min(100%, 224px);
+  height: auto;
+  margin: 0 auto 16px;
+  opacity: 0.5;
+}
+
+.empty-state-folder {
+  box-sizing: border-box;
+  min-height: max(360px, calc(100vh - 210px));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.empty-state-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:root[data-theme="dark"] .empty-state-image {
+  filter: invert(1) hue-rotate(180deg);
+  mix-blend-mode: screen;
+}
+
+@media (max-width: 760px) {
+  .empty-state-image {
+    width: min(100%, 150px);
+  }
+}
+
 /* ---------- Card grid ---------- */
 
 .grid {
