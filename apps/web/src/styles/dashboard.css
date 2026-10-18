@@ -1,0 +1,385 @@
+/* ---------- Empty state ---------- */
+
+.empty-state {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 64px 24px;
+  text-align: center;
+  font-size: 15px;
+}
+
+.empty-state p {
+  margin: 6px 0;
+}
+
+.empty-state-image {
+  display: block;
+  width: min(100%, 224px);
+  height: auto;
+  margin: 0 auto 16px;
+  opacity: 0.5;
+}
+
+.empty-state-folder {
+  box-sizing: border-box;
+  min-height: max(360px, calc(100vh - 210px));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.empty-state-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:root[data-theme="dark"] .empty-state-image {
+  filter: invert(1) hue-rotate(180deg);
+  mix-blend-mode: screen;
+}
+
+@media (max-width: 760px) {
+  .empty-state-image {
+    width: min(100%, 150px);
+  }
+}
+
+/* ---------- Card grid ---------- */
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  position: relative;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  /* NOTE: no transform here — a transformed ancestor becomes the
+     containing block for position:fixed popovers and clips them via
+     overflow:hidden. Hover feedback uses border/shadow only. */
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.card-thumb-link {
+  display: block;
+}
+
+.card-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+  background: #fff;
+}
+
+.card-thumb-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: repeating-conic-gradient(var(--empty-check-b) 0% 25%, var(--empty-check-a) 0% 50%)
+    50% / 16px 16px;
+  font-size: 13px;
+}
+
+.card-menu-trigger {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+/* While the popover is open the full-screen backdrop would otherwise
+   swallow clicks aimed at the trigger; lift the trigger above it so the
+   button keeps receiving events and can toggle cleanly. */
+.card-menu-trigger[aria-expanded="true"] {
+  z-index: 22;
+}
+
+.card:hover .card-menu-trigger,
+.card-menu-trigger:focus-visible,
+.card-menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.card-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card-name {
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.content-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 30px 7px 32px;
+  width: 210px;
+  outline: none;
+  transition: border-color 120ms ease;
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-clear {
+  position: absolute;
+  right: 6px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.search-clear:hover {
+  color: var(--text);
+}
+
+.content-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-heading-name {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 0 9px;
+  margin: 0 -9px;
+  cursor: text;
+}
+
+.folder-heading-name:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.folder-heading-input {
+  box-sizing: border-box;
+  height: 36px;
+  min-width: 230px;
+  max-width: 450px;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 8px;
+  outline: none;
+}
+
+.card-name-input {
+  font: inherit;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 1px 5px;
+  margin: -2px -6px;
+  width: calc(100% + 12px);
+  outline: none;
+}
+
+.card-meta {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* ---------- Dropdown menu ---------- */
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.menu {
+  position: fixed;
+  z-index: 21;
+  min-width: 150px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow:
+    var(--shadow),
+    0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 5px;
+}
+
+.menu-item {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menu-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-check {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.menu-item-danger {
+  color: var(--danger);
+}
+
+.menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+
+@media (max-width: 760px) {
+  .content-header-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    flex-shrink: 1;
+    gap: 14px;
+  }
+
+  .content-header-actions .search-wrap {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    margin-right: 0;
+  }
+
+  .content-header-actions .search-input {
+    width: 100%;
+  }
+
+  .content-header-actions > .btn {
+    justify-content: center;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
