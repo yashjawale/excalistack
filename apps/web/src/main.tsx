@@ -25,6 +25,12 @@ declare global {
 }
 window.EXCALIDRAW_ASSET_PATH = "/excalidraw-assets/";
 
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("/sw.js");
+  });
+}
+
 /**
  * Application bootstrap: mounts the SPA inside the root element.
  */
