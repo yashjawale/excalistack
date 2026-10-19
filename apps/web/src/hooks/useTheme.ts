@@ -101,6 +101,9 @@ export function useTheme(): [
   // Reflect the resolved theme on the document for global CSS.
   useEffect(() => {
     document.documentElement.dataset["theme"] = resolved;
+    document
+      .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+      ?.setAttribute("content", resolved === "dark" ? "#121212" : "#fbfbfc");
   }, [resolved]);
 
   const update = useCallback((next: ThemePreference): void => {

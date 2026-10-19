@@ -17,6 +17,7 @@ Self-hosted Excalidraw library for storing, organizing, and editing multiple dra
 - Server-side persistence in a single SQLite database
 - Native `.excalidraw` import/export, plus PNG and SVG export
 - Excalidraw editor with light, dark, and system themes
+- Installable PWA with an offline-cached app shell
 - Optional MCP integration for AI-assisted diagrams and library access
 
 > Excalistack is **not a replacement for [Excalidraw+](https://plus.excalidraw.com/)**. It focuses on providing a self-hosted way to work with multiple drawings. For collaboration and more, check out Excalidraw+. If you find Excalidraw useful, please consider [supporting the original project](https://github.com/sponsors/excalidraw).
@@ -32,6 +33,8 @@ docker compose up -d
 ```
 
 Open <http://localhost:3000>.
+
+The web app can be installed from supported browsers when served over HTTPS (localhost is also supported). Its app shell is cached for offline loading; drawing data still requires a connection to the server.
 
 To run the prebuilt image from GHCR:
 
