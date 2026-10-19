@@ -1,4 +1,4 @@
-import type { DragEvent, ReactElement } from "react";
+import { useRef, type DragEvent, type PointerEvent, type ReactElement } from "react";
 import type { DrawingSummary, FolderSummary } from "@excalistack/shared";
 import { CardMenu } from "./CardMenu";
 import { InlineRename } from "./InlineRename";
@@ -22,11 +22,42 @@ export interface DrawingCardProps {
 /** A library card with preview, metadata, inline rename, and actions. */
 export function DrawingCard(props: DrawingCardProps): ReactElement {
   const { drawing } = props;
+  const longPressTimer = useRef<number | null>(null);
+  const longPressTriggered = useRef(false);
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLLIElement>) => {
+    if (event.pointerType !== "touch") return;
+    const card = event.currentTarget;
+    longPressTriggered.current = false;
+    cancelLongPress();
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTriggered.current = true;
+      card.querySelector<HTMLButtonElement>(".card-menu-trigger")?.click();
+    }, 450);
+  };
+
   return (
     <li
       className="card"
       draggable={!props.busy}
       onDragStart={(event) => props.onDragStart(event, drawing)}
+      onPointerDown={handlePointerDown}
+      onPointerUp={cancelLongPress}
+      onPointerCancel={cancelLongPress}
+      onPointerMove={cancelLongPress}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        cancelLongPress();
+        if (!longPressTriggered.current) {
+          event.currentTarget.querySelector<HTMLButtonElement>(".card-menu-trigger")?.click();
+        }
+        longPressTriggered.current = false;
+      }}
     >
       <CardMenu
         downloadUrl={`/api/drawings/${encodeURIComponent(drawing.id)}/export`}
