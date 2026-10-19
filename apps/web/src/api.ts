@@ -17,9 +17,13 @@ import type {
  * @returns Parsed response body (`undefined` for 204 responses).
  */
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  if (init.body !== undefined && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
   const response = await fetch(url, {
     ...init,
-    headers: { "content-type": "application/json", ...init.headers },
+    headers,
   });
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
