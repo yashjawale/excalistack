@@ -1,6 +1,6 @@
 import path from "node:path";
 import fastifyStatic from "@fastify/static";
-import type { FastifyInstance, FastifyLoggerOptions } from "fastify";
+import { LogController, type FastifyInstance, type FastifyLoggerOptions } from "fastify";
 import fastify from "fastify";
 import { ZodError } from "zod";
 import { registerDrawingRoutes } from "./routes/drawings.js";
@@ -33,7 +33,16 @@ export interface BuildAppOptions {
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
   const { store, logger = false } = options;
   // Generous body limit: drawings embed images as base64 data URLs.
-  const app = fastify({ logger, bodyLimit: 64 * 1024 * 1024 });
+  const app = fastify({
+    logger,
+    logController: new LogController({
+      disableRequestLogging: (request) => {
+        const path = request.url.split("?", 1)[0];
+        return path === "/api/health" || path === "/api/mcp/status";
+      },
+    }),
+    bodyLimit: 64 * 1024 * 1024,
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
